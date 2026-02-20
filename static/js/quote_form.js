@@ -337,6 +337,40 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // --- Form submit: serialize items to JSON hidden field for reliable submission ---
+    const quoteForm = document.getElementById('quoteForm');
+    if (quoteForm) {
+        quoteForm.addEventListener('submit', function() {
+            renumberPositions();
+            const items = [];
+            document.querySelectorAll('.item-row').forEach(function(row) {
+                const idx = row.dataset.index;
+                const titleEl = row.querySelector('[name="item_title_' + idx + '"]');
+                const descEl = row.querySelector('[name="item_description_' + idx + '"]');
+                const qtyEl = row.querySelector('[name="item_quantity_' + idx + '"]');
+                const priceEl = row.querySelector('[name="item_price_' + idx + '"]');
+                const carportEl = row.querySelector('[name="item_is_carport_' + idx + '"]');
+                items.push({
+                    title: titleEl ? titleEl.value : '',
+                    description: descEl ? descEl.value : '',
+                    quantity: qtyEl ? qtyEl.value || '1x' : '1x',
+                    total_price: priceEl ? parseFloat(priceEl.value) || 0 : 0,
+                    is_carport: carportEl ? (carportEl.checked ? 1 : 0) : 0,
+                });
+            });
+            // Write JSON into hidden field
+            let jsonField = document.getElementById('items_json');
+            if (!jsonField) {
+                jsonField = document.createElement('input');
+                jsonField.type = 'hidden';
+                jsonField.id = 'items_json';
+                jsonField.name = 'items_json';
+                quoteForm.appendChild(jsonField);
+            }
+            jsonField.value = JSON.stringify(items);
+        });
+    }
+
     // --- Utility ---
     function escapeHtml(str) {
         if (!str) return '';

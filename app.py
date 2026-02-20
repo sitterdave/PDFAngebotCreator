@@ -1,4 +1,5 @@
 import os
+import json
 from datetime import datetime, timedelta
 from flask import (
     Flask, render_template, request, redirect, url_for,
@@ -336,7 +337,29 @@ def _parse_product_form(form):
 
 
 def parse_items_from_form(form):
-    # Collect all item indices from form keys (handles gaps like 0,2,5)
+    # Primary: read items from JSON hidden field (most reliable for dynamic rows)
+    items_json = form.get('items_json', '')
+    if items_json:
+        try:
+            raw_items = json.loads(items_json)
+            items = []
+            for item in raw_items:
+                title = str(item.get('title', ''))
+                desc = str(item.get('description', ''))
+                if title.strip() or desc.strip():
+                    items.append({
+                        'title': title,
+                        'description': desc,
+                        'quantity': str(item.get('quantity', '1x')) or '1x',
+                        'total_price': float(item.get('total_price', 0) or 0),
+                        'is_carport': int(item.get('is_carport', 0) or 0),
+                    })
+            if items:
+                return items
+        except (json.JSONDecodeError, TypeError, ValueError):
+            pass
+
+    # Fallback: read from individual form fields
     indices = set()
     for key in form.keys():
         if key.startswith('item_title_'):
