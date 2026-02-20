@@ -669,6 +669,10 @@ def _draw_totals_box(pdf, totals, country):
 
     pdf.set_line_width(0.3)
 
+    # Ensure the entire totals box fits on one page (approx 45mm needed)
+    if pdf.get_y() + 45 > pdf.h - 20:
+        pdf.add_page()
+
     y_start = pdf.get_y() + 4
 
     # Summe netto
