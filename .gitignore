@@ -8,3 +8,9 @@ static/uploads/*
 *.db
 venv/
 .venv/
+# Only keep the 4 DejaVu Sans fonts needed for PDF generation
+static/fonts/DejaVuMath*
+static/fonts/DejaVuSansCondensed*
+static/fonts/DejaVuSansMono*
+static/fonts/DejaVuSerif*
+static/fonts/DejaVuSans-ExtraLight*
