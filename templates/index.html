@@ -54,6 +54,12 @@
                                 <i class="bi bi-copy"></i>
                             </button>
                         </form>
+                        <form method="post" action="{{ url_for('delete_quote_route', quote_id=q.id) }}" class="d-inline"
+                              onsubmit="return confirm('Angebot {{ q.quote_number }} wirklich löschen?')">
+                            <button type="submit" class="btn btn-outline-danger btn-sm" title="Löschen">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
                     </div>
                 </td>
             </tr>
