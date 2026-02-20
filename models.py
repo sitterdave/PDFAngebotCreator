@@ -106,22 +106,30 @@ def init_db():
     existing = conn.execute("SELECT id FROM company_settings WHERE id = 1").fetchone()
     if not existing:
         default_terms = (
-            "1) Dieses Angebot ist 30 Tage ab Ausstellungsdatum gültig. "
-            "Nach Ablauf dieser Frist behalten wir uns eine Anpassung der Konditionen vor.\n\n"
-            "2) Wir behandeln Ihre Daten mit größter Sorgfalt. "
-            "Unsere aktuelle Datenschutzerklärung finden Sie auf www.stromsparen24.at "
-            "oder wir senden Ihnen diese auf Anfrage zu.\n\n"
-            "3) Die Zahlung erfolgt in zwei Raten:\n"
-            "    \u2022 50 % Anzahlung bei Angebotsannahme. Eine Anzahlungsrechnung über 50% wird hierzu erstellt.\n"
-            "    \u2022 50 % Restzahlung nach Fertigstellung und Lieferung aller Positionen.\n\n"
-            "4) Bitte beachten Sie, dass Stromsparen24.at ein Service der Labsupport GmbH & Co KG ist. "
-            "Deshalb erfolgt die Rechnungsstellung für alle Käufe auf Stromsparen24.at "
-            "durch Labsupport GmbH & Co KG.\n\n"
-            "5) Partnerfirma für Installationsarbeiten: Alle Installations- und elektrischen Anschlussarbeiten "
-            "werden in Zusammenarbeit mit unserer erfahrenen Partnerfirma ProPhone KG durchgeführt. "
-            "Diese Partnerschaft gewährleistet eine fachgerechte und reibungslose Umsetzung Ihres Projekts.\n\n"
-            "6) Dieses Angebot ist freibleibend und unverbindlich. "
-            "Irrtümer, Druckfehler und Preisänderungen bleiben ausdrücklich vorbehalten.\n"
+            "1) Gültigkeit und Vertragsabschluss\n"
+            "Dieses Angebot basiert auf unserer aktuellen Kalkulation und ist preislich 30 Tage ab "
+            "Ausstellungsdatum gültig.\n"
+            "Es ist freibleibend und unverbindlich. Ein rechtsverbindlicher Vertrag kommt erst mit unserer "
+            "schriftlichen Auftragsbestätigung zustande. Nach Ablauf der 30-Tage-Frist behalten wir uns "
+            "eine Anpassung der Konditionen vor.\n\n"
+            "2) Zahlungsbedingungen\n"
+            "Die Zahlung erfolgt in zwei Raten:\n"
+            "    \u2022 50 % Anzahlung bei Angebotsannahme. Hierzu wird eine Anzahlungsrechnung erstellt.\n"
+            "    \u2022 50 % Restzahlung nach Fertigstellung und Lieferung aller vereinbarten Positionen.\n\n"
+            "3) Rechnungsstellung\n"
+            "Stromsparen24.at ist ein Service der Labsupport GmbH & Co KG.\n"
+            "Die Rechnungsstellung erfolgt daher ausschließlich durch die Labsupport GmbH & Co KG.\n\n"
+            "4) Installation und Partnerunternehmen\n"
+            "Installations- und elektrische Anschlussarbeiten erfolgen in Zusammenarbeit mit unserer "
+            "erfahrenen Partnerfirma ProPhone KG. Diese Partnerschaft gewährleistet eine fachgerechte "
+            "und normkonforme Umsetzung Ihres Projekts.\n\n"
+            "5) Datenschutz\n"
+            "Ihre personenbezogenen Daten werden vertraulich und gemäß den geltenden "
+            "datenschutzrechtlichen Bestimmungen verarbeitet.\n"
+            "Unsere aktuelle Datenschutzerklärung finden Sie unter www.stromsparen24.at "
+            "oder erhalten Sie auf Anfrage.\n\n"
+            "6) Vorbehalte\n"
+            "Irrtümer, Druckfehler sowie Preis-, Material- und Lieferzeitänderungen bleiben vorbehalten.\n"
         )
         conn.execute(
             """INSERT INTO company_settings (
@@ -263,32 +271,41 @@ def _migrate_existing_data(conn):
     terms = row['terms_text'] or ''
     company_name = row['company_name'] or ''
 
-    # Check if terms need updating: old patterns, wrong numbering, or missing disclaimer
+    # Check if terms need updating: old patterns or missing new structure
     needs_update = (
         'gueltig' in terms or 'groesster' in terms or 'ueber' in terms
         or 'fuer' in terms or 'durchgefuehrt' in terms
         or '4)\n\n5)' in terms
         or ('\nPartnerfirma' in terms and '5) Partnerfirma' not in terms)
         or ('5) Partnerfirma' in terms and '6) Dieses Angebot ist freibleibend' not in terms)
+        or ('6) Dieses Angebot ist freibleibend' in terms and '1) Gültigkeit' not in terms)
     )
     if needs_update:
         new_terms = (
-            "1) Dieses Angebot ist 30 Tage ab Ausstellungsdatum gültig. "
-            "Nach Ablauf dieser Frist behalten wir uns eine Anpassung der Konditionen vor.\n\n"
-            "2) Wir behandeln Ihre Daten mit größter Sorgfalt. "
-            "Unsere aktuelle Datenschutzerklärung finden Sie auf www.stromsparen24.at "
-            "oder wir senden Ihnen diese auf Anfrage zu.\n\n"
-            "3) Die Zahlung erfolgt in zwei Raten:\n"
-            "    \u2022 50 % Anzahlung bei Angebotsannahme. Eine Anzahlungsrechnung über 50% wird hierzu erstellt.\n"
-            "    \u2022 50 % Restzahlung nach Fertigstellung und Lieferung aller Positionen.\n\n"
-            "4) Bitte beachten Sie, dass Stromsparen24.at ein Service der Labsupport GmbH & Co KG ist. "
-            "Deshalb erfolgt die Rechnungsstellung für alle Käufe auf Stromsparen24.at "
-            "durch Labsupport GmbH & Co KG.\n\n"
-            "5) Partnerfirma für Installationsarbeiten: Alle Installations- und elektrischen Anschlussarbeiten "
-            "werden in Zusammenarbeit mit unserer erfahrenen Partnerfirma ProPhone KG durchgeführt. "
-            "Diese Partnerschaft gewährleistet eine fachgerechte und reibungslose Umsetzung Ihres Projekts.\n\n"
-            "6) Dieses Angebot ist freibleibend und unverbindlich. "
-            "Irrtümer, Druckfehler und Preisänderungen bleiben ausdrücklich vorbehalten.\n"
+            "1) Gültigkeit und Vertragsabschluss\n"
+            "Dieses Angebot basiert auf unserer aktuellen Kalkulation und ist preislich 30 Tage ab "
+            "Ausstellungsdatum gültig.\n"
+            "Es ist freibleibend und unverbindlich. Ein rechtsverbindlicher Vertrag kommt erst mit unserer "
+            "schriftlichen Auftragsbestätigung zustande. Nach Ablauf der 30-Tage-Frist behalten wir uns "
+            "eine Anpassung der Konditionen vor.\n\n"
+            "2) Zahlungsbedingungen\n"
+            "Die Zahlung erfolgt in zwei Raten:\n"
+            "    \u2022 50 % Anzahlung bei Angebotsannahme. Hierzu wird eine Anzahlungsrechnung erstellt.\n"
+            "    \u2022 50 % Restzahlung nach Fertigstellung und Lieferung aller vereinbarten Positionen.\n\n"
+            "3) Rechnungsstellung\n"
+            "Stromsparen24.at ist ein Service der Labsupport GmbH & Co KG.\n"
+            "Die Rechnungsstellung erfolgt daher ausschließlich durch die Labsupport GmbH & Co KG.\n\n"
+            "4) Installation und Partnerunternehmen\n"
+            "Installations- und elektrische Anschlussarbeiten erfolgen in Zusammenarbeit mit unserer "
+            "erfahrenen Partnerfirma ProPhone KG. Diese Partnerschaft gewährleistet eine fachgerechte "
+            "und normkonforme Umsetzung Ihres Projekts.\n\n"
+            "5) Datenschutz\n"
+            "Ihre personenbezogenen Daten werden vertraulich und gemäß den geltenden "
+            "datenschutzrechtlichen Bestimmungen verarbeitet.\n"
+            "Unsere aktuelle Datenschutzerklärung finden Sie unter www.stromsparen24.at "
+            "oder erhalten Sie auf Anfrage.\n\n"
+            "6) Vorbehalte\n"
+            "Irrtümer, Druckfehler sowie Preis-, Material- und Lieferzeitänderungen bleiben vorbehalten.\n"
         )
         conn.execute("UPDATE company_settings SET terms_text = ? WHERE id = 1", (new_terms,))
         conn.commit()

@@ -196,6 +196,32 @@ def _draw_section_header(pdf, text):
     pdf.ln(3)
 
 
+def _draw_terms_text(pdf, terms):
+    """Render terms text with bold headings for numbered sections like '1) Title'."""
+    import re
+    f = pdf.f
+    paragraphs = terms.split('\n')
+    heading_pattern = re.compile(r'^(\d+)\)\s+(.+)$')
+
+    for line in paragraphs:
+        line_stripped = line.strip()
+        match = heading_pattern.match(line_stripped)
+        if match:
+            # Bold heading line
+            pdf.ln(2)
+            pdf.set_font(f, 'B', 9)
+            pdf.set_text_color(*BLUE)
+            pdf.set_x(pdf.l_margin)
+            pdf.multi_cell(0, 5, line_stripped, align='L')
+        elif line_stripped:
+            pdf.set_font(f, '', 9)
+            pdf.set_text_color(*BLACK)
+            pdf.set_x(pdf.l_margin)
+            pdf.multi_cell(0, 5, line_stripped, align='L')
+        else:
+            pdf.ln(2)
+
+
 def generate_quote_pdf(quote, items):
     company = get_company_settings()
     totals = calculate_quote_totals(items, quote['country'])
@@ -352,9 +378,7 @@ def generate_quote_pdf(quote, items):
         _draw_section_header(pdf, 'Zusätzliche Angebotsinformationen')
         pdf.ln(2)
 
-        pdf.set_font(f, '', 9)
-        pdf.set_text_color(*BLACK)
-        pdf.multi_cell(0, 5, terms, align='L')
+        _draw_terms_text(pdf, terms)
 
         pdf.ln(12)
 
