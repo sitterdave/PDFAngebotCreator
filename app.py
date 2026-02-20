@@ -336,12 +336,18 @@ def _parse_product_form(form):
 
 
 def parse_items_from_form(form):
+    # Collect all item indices from form keys (handles gaps like 0,2,5)
+    indices = set()
+    for key in form.keys():
+        if key.startswith('item_title_'):
+            try:
+                indices.add(int(key.split('_')[-1]))
+            except ValueError:
+                pass
+
     items = []
-    i = 0
-    while True:
-        title = form.get(f'item_title_{i}')
-        if title is None:
-            break
+    for i in sorted(indices):
+        title = form.get(f'item_title_{i}', '')
         if title.strip() or form.get(f'item_description_{i}', '').strip():
             items.append({
                 'title': title,
@@ -350,7 +356,6 @@ def parse_items_from_form(form):
                 'total_price': float(form.get(f'item_price_{i}', 0) or 0),
                 'is_carport': 1 if form.get(f'item_is_carport_{i}') else 0,
             })
-        i += 1
     return items
 
 

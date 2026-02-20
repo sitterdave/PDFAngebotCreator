@@ -57,6 +57,10 @@ document.addEventListener('DOMContentLoaded', function() {
             </td>
         `;
 
+        // Remove empty hint if present
+        const hint = document.getElementById('emptyItemsHint');
+        if (hint) hint.remove();
+
         itemsBody.appendChild(row);
         itemIndex++;
         updateCarportVisibility();
@@ -71,6 +75,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 btn.closest('tr').remove();
                 renumberPositions();
                 recalculate();
+                updateEmptyHint();
             };
         });
     }
@@ -80,7 +85,15 @@ document.addEventListener('DOMContentLoaded', function() {
         const rows = document.querySelectorAll('.item-row');
         rows.forEach(function(row, i) {
             row.querySelector('.pos-number').textContent = i + 1;
+            row.dataset.index = i;
+            // Re-index all form field names so indices are always 0, 1, 2, ...
+            row.querySelectorAll('input, textarea').forEach(function(el) {
+                if (el.name) {
+                    el.name = el.name.replace(/_\d+$/, '_' + i);
+                }
+            });
         });
+        itemIndex = rows.length;
     }
 
     // --- Country change: show/hide carport column ---
@@ -155,10 +168,24 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initial calculation
     recalculate();
 
-    // Add first empty row if no items exist
-    if (document.querySelectorAll('.item-row').length === 0) {
-        addItemRow();
+    // Show hint when no items exist (no auto-added empty row)
+    function updateEmptyHint() {
+        let hint = document.getElementById('emptyItemsHint');
+        if (document.querySelectorAll('.item-row').length === 0) {
+            if (!hint) {
+                hint = document.createElement('tr');
+                hint.id = 'emptyItemsHint';
+                hint.innerHTML = '<td colspan="7" class="text-center text-muted py-3">'
+                    + '<i class="bi bi-info-circle me-1"></i>'
+                    + 'Positionen über "Aus Vorlage" oder "Leere Position" hinzufügen'
+                    + '</td>';
+                itemsBody.appendChild(hint);
+            }
+        } else if (hint) {
+            hint.remove();
+        }
     }
+    updateEmptyHint();
 
     // === Product Template Quick-Add ===
     const productModal = document.getElementById('productModal');
