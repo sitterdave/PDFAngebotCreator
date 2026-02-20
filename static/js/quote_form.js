@@ -5,42 +5,50 @@ document.addEventListener('DOMContentLoaded', function() {
     const itemsBody = document.getElementById('itemsBody');
     const countrySelect = document.getElementById('countrySelect');
 
-    // Add new item row
+    // --- Add new empty item row ---
     addItemBtn.addEventListener('click', function() {
         addItemRow();
     });
 
-    function addItemRow() {
+    function addItemRow(data) {
         const idx = itemIndex;
         const row = document.createElement('tr');
         row.className = 'item-row';
         row.dataset.index = idx;
 
+        const title = data ? (data.title || '') : '';
+        const desc = data ? (data.description || '') : '';
+        const qty = data ? (data.quantity || '1x') : '1x';
+        const price = data ? (data.price || 0) : 0;
+        const isCarport = data ? data.is_carport : false;
+
         row.innerHTML = `
-            <td class="align-middle text-center pos-number">${idx + 1}</td>
+            <td class="align-middle text-center pos-number">${document.querySelectorAll('.item-row').length + 1}</td>
             <td>
                 <input type="text" name="item_title_${idx}"
                        class="form-control form-control-sm"
+                       value="${escapeAttr(title)}"
                        placeholder="z.B. PV-Carport Modell S2">
             </td>
             <td>
                 <textarea name="item_description_${idx}"
                           class="form-control form-control-sm" rows="2"
-                          placeholder="Detailbeschreibung..."></textarea>
+                          placeholder="Detailbeschreibung...">${escapeHtml(desc)}</textarea>
             </td>
             <td>
                 <input type="text" name="item_quantity_${idx}"
-                       class="form-control form-control-sm" value="1x"
+                       class="form-control form-control-sm" value="${escapeAttr(qty)}"
                        placeholder="1x">
             </td>
             <td>
                 <input type="number" name="item_price_${idx}"
-                       class="form-control form-control-sm item-price" value="0"
+                       class="form-control form-control-sm item-price" value="${price}"
                        step="0.01" min="0">
             </td>
             <td class="text-center carport-col">
                 <input type="checkbox" name="item_is_carport_${idx}"
-                       class="form-check-input item-carport" value="1">
+                       class="form-check-input item-carport" value="1"
+                       ${isCarport ? 'checked' : ''}>
             </td>
             <td>
                 <button type="button" class="btn btn-sm btn-outline-danger remove-item-btn">
@@ -56,7 +64,7 @@ document.addEventListener('DOMContentLoaded', function() {
         recalculate();
     }
 
-    // Remove item
+    // --- Remove item ---
     function bindRemoveButtons() {
         document.querySelectorAll('.remove-item-btn').forEach(function(btn) {
             btn.onclick = function() {
@@ -68,7 +76,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     bindRemoveButtons();
 
-    // Renumber positions after removal
     function renumberPositions() {
         const rows = document.querySelectorAll('.item-row');
         rows.forEach(function(row, i) {
@@ -76,7 +83,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Country change: show/hide carport column
+    // --- Country change: show/hide carport column ---
     if (countrySelect) {
         countrySelect.addEventListener('change', function() {
             updateCarportVisibility();
@@ -99,7 +106,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     updateCarportVisibility();
 
-    // Live calculation
+    // --- Live calculation ---
     function recalculate() {
         const country = countrySelect ? countrySelect.value : 'AT';
         let netto = 0;
@@ -133,7 +140,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return value.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
-    // Bind price change events
+    // Bind price change events (using event delegation)
     document.addEventListener('input', function(e) {
         if (e.target.classList.contains('item-price') || e.target.classList.contains('item-carport')) {
             recalculate();
@@ -151,5 +158,142 @@ document.addEventListener('DOMContentLoaded', function() {
     // Add first empty row if no items exist
     if (document.querySelectorAll('.item-row').length === 0) {
         addItemRow();
+    }
+
+    // === Product Template Quick-Add ===
+    const productModal = document.getElementById('productModal');
+    if (productModal) {
+        productModal.addEventListener('show.bs.modal', loadProductTemplates);
+    }
+
+    function loadProductTemplates() {
+        const container = document.getElementById('productList');
+        container.innerHTML = '<p class="text-muted">Lade...</p>';
+
+        fetch('/api/products')
+            .then(r => r.json())
+            .then(templates => {
+                if (!templates.length) {
+                    container.innerHTML = '<p class="text-muted">Keine Produktvorlagen vorhanden. Erstellen Sie welche unter "Produkte".</p>';
+                    return;
+                }
+
+                // Group by category
+                const cats = {};
+                templates.forEach(t => {
+                    const cat = t.category || 'Sonstige';
+                    if (!cats[cat]) cats[cat] = [];
+                    cats[cat].push(t);
+                });
+
+                let html = '';
+                for (const [catName, catItems] of Object.entries(cats)) {
+                    html += '<h6 class="mt-3 mb-2 text-muted">' + escapeHtml(catName) + '</h6>';
+                    html += '<div class="list-group mb-2">';
+                    catItems.forEach(t => {
+                        const jsonStr = JSON.stringify(t);
+                        html += '<button type="button" class="list-group-item list-group-item-action product-add-btn"'
+                            + ' data-product-id="' + t.id + '">'
+                            + '<div class="d-flex justify-content-between align-items-center">'
+                            + '<div>'
+                            + '<strong>' + escapeHtml(t.title) + '</strong>'
+                            + (t.description ? '<br><small class="text-muted">' + escapeHtml(t.description.substring(0, 100)) + '</small>' : '')
+                            + '</div>'
+                            + '<div class="text-end text-nowrap ms-3">'
+                            + '<span class="product-price badge bg-secondary">' + getTemplatePrice(t) + '</span>'
+                            + '</div>'
+                            + '</div>'
+                            + '</button>';
+                    });
+                    html += '</div>';
+                }
+                container.innerHTML = html;
+
+                // Store templates for later use
+                container._templates = templates;
+
+                // Bind click handlers
+                container.querySelectorAll('.product-add-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const pid = parseInt(this.dataset.productId);
+                        const product = templates.find(t => t.id === pid);
+                        if (product) addProductToQuote(product);
+                    });
+                });
+
+                // Update prices when slot count changes
+                const slotSelect = document.getElementById('slotCount');
+                if (slotSelect) {
+                    slotSelect.onchange = function() {
+                        container.querySelectorAll('.product-add-btn').forEach(btn => {
+                            const pid = parseInt(btn.dataset.productId);
+                            const product = templates.find(t => t.id === pid);
+                            if (product) {
+                                const priceSpan = btn.querySelector('.product-price');
+                                if (priceSpan) {
+                                    priceSpan.textContent = getTemplatePrice(product);
+                                }
+                            }
+                        });
+                    };
+                }
+            })
+            .catch(() => {
+                container.innerHTML = '<p class="text-danger">Fehler beim Laden der Vorlagen.</p>';
+            });
+    }
+
+    function getTemplatePrice(template) {
+        const slots = document.getElementById('slotCount') ? document.getElementById('slotCount').value : '2';
+        if (slots === '1' && template.price_1_slot != null) {
+            return formatCurrency(template.price_1_slot) + ' \u20AC';
+        } else if (slots === '2' && template.price_2_slot != null) {
+            return formatCurrency(template.price_2_slot) + ' \u20AC';
+        } else if (slots === '3' && template.price_3_plus) {
+            return template.price_3_plus;
+        }
+        // Fallback: try any available price
+        if (template.price_1_slot != null) return formatCurrency(template.price_1_slot) + ' \u20AC';
+        if (template.price_2_slot != null) return formatCurrency(template.price_2_slot) + ' \u20AC';
+        if (template.price_3_plus) return template.price_3_plus;
+        return 'Preis eingeben';
+    }
+
+    function getTemplatePriceValue(template) {
+        const slots = document.getElementById('slotCount') ? document.getElementById('slotCount').value : '2';
+        if (slots === '1' && template.price_1_slot != null) return template.price_1_slot;
+        if (slots === '2' && template.price_2_slot != null) return template.price_2_slot;
+        // Fallback
+        if (template.price_1_slot != null) return template.price_1_slot;
+        if (template.price_2_slot != null) return template.price_2_slot;
+        return 0;
+    }
+
+    function addProductToQuote(product) {
+        const price = getTemplatePriceValue(product);
+        addItemRow({
+            title: product.title,
+            description: product.description || '',
+            quantity: product.default_quantity || '1x',
+            price: price,
+            is_carport: product.is_carport ? true : false,
+        });
+
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('productModal'));
+        if (modal) modal.hide();
+    }
+
+    // --- Utility ---
+    function escapeHtml(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    function escapeAttr(str) {
+        if (!str) return '';
+        return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 });

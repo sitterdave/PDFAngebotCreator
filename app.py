@@ -8,7 +8,9 @@ from werkzeug.utils import secure_filename
 from models import (
     init_db, get_company_settings, update_company_settings,
     generate_quote_number, create_quote, get_quote, get_all_quotes,
-    update_quote, delete_quote, duplicate_quote, calculate_quote_totals
+    update_quote, delete_quote, duplicate_quote, calculate_quote_totals,
+    get_all_product_templates, get_product_template,
+    create_product_template, update_product_template, delete_product_template
 )
 from pdf_generator import generate_quote_pdf
 import io
@@ -264,6 +266,73 @@ def api_calculate():
             'vat_amount': round(i['vat_amount'], 2),
         } for i in totals['positions']]
     })
+
+
+# --- Product Templates ---
+
+@app.route('/products')
+def product_list():
+    templates = get_all_product_templates()
+    # Group by category
+    categories = {}
+    for t in templates:
+        cat = t.get('category', 'Sonstige') or 'Sonstige'
+        if cat not in categories:
+            categories[cat] = []
+        categories[cat].append(t)
+    return render_template('products.html', categories=categories, templates=templates)
+
+
+@app.route('/products/new', methods=['GET', 'POST'])
+def new_product():
+    if request.method == 'POST':
+        data = _parse_product_form(request.form)
+        create_product_template(data)
+        flash('Produktvorlage erstellt.', 'success')
+        return redirect(url_for('product_list'))
+    return render_template('product_form.html', product={}, is_new=True)
+
+
+@app.route('/products/<int:product_id>/edit', methods=['GET', 'POST'])
+def edit_product(product_id):
+    if request.method == 'POST':
+        data = _parse_product_form(request.form)
+        update_product_template(product_id, data)
+        flash('Produktvorlage aktualisiert.', 'success')
+        return redirect(url_for('product_list'))
+    product = get_product_template(product_id)
+    if not product:
+        flash('Vorlage nicht gefunden.', 'error')
+        return redirect(url_for('product_list'))
+    return render_template('product_form.html', product=product, is_new=False)
+
+
+@app.route('/products/<int:product_id>/delete', methods=['POST'])
+def delete_product_route(product_id):
+    delete_product_template(product_id)
+    flash('Produktvorlage geloescht.', 'success')
+    return redirect(url_for('product_list'))
+
+
+@app.route('/api/products')
+def api_products():
+    """Return product templates as JSON for the quote form quick-add."""
+    templates = get_all_product_templates()
+    return jsonify(templates)
+
+
+def _parse_product_form(form):
+    return {
+        'category': form.get('category', ''),
+        'title': form.get('title', ''),
+        'description': form.get('description', ''),
+        'default_quantity': form.get('default_quantity', '1x'),
+        'price_1_slot': form.get('price_1_slot', '') or None,
+        'price_2_slot': form.get('price_2_slot', '') or None,
+        'price_3_plus': form.get('price_3_plus', ''),
+        'is_carport': 1 if form.get('is_carport') else 0,
+        'sort_order': int(form.get('sort_order', 0) or 0),
+    }
 
 
 def parse_items_from_form(form):

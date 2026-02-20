@@ -103,9 +103,14 @@
     <div class="card mb-4">
         <div class="card-header bg-teal text-white d-flex justify-content-between align-items-center">
             <span><i class="bi bi-list-ol"></i> Positionen</span>
-            <button type="button" class="btn btn-sm btn-light" id="addItemBtn">
-                <i class="bi bi-plus"></i> Position hinzufuegen
-            </button>
+            <div class="btn-group btn-group-sm">
+                <button type="button" class="btn btn-light" id="addItemBtn">
+                    <i class="bi bi-plus"></i> Leere Position
+                </button>
+                <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#productModal">
+                    <i class="bi bi-box-seam"></i> Aus Vorlage
+                </button>
+            </div>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -220,6 +225,34 @@
     </div>
 </form>
 {% endblock %}
+
+<!-- Product Template Modal -->
+<div class="modal fade" id="productModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-teal text-white">
+                <h5 class="modal-title"><i class="bi bi-box-seam"></i> Produktvorlage einfuegen</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Anzahl Stellplaetze (fuer Preisauswahl)</label>
+                    <select class="form-select" id="slotCount">
+                        <option value="1">1 Stellplatz</option>
+                        <option value="2" selected>2 Stellplaetze</option>
+                        <option value="3">3+ Stellplaetze</option>
+                    </select>
+                </div>
+                <div id="productList">
+                    <p class="text-muted">Lade Vorlagen...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schliessen</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/quote_form.js') }}"></script>

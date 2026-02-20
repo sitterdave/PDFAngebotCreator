@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Neue Produktvorlage' if is_new else 'Vorlage bearbeiten' }} - Angebot Creator{% endblock %}
+
+{% block content %}
+<h2>
+    <i class="bi bi-{{ 'plus-circle' if is_new else 'pencil' }}"></i>
+    {{ 'Neue Produktvorlage' if is_new else 'Produktvorlage bearbeiten' }}
+</h2>
+
+<form method="post">
+    <div class="card mb-4">
+        <div class="card-header bg-teal text-white">
+            <i class="bi bi-box-seam"></i> Produktdetails
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Kategorie</label>
+                    <input type="text" name="category" class="form-control"
+                           value="{{ product.category or '' }}"
+                           placeholder="z.B. Installation, Komponenten, Lieferung"
+                           list="categoryList">
+                    <datalist id="categoryList">
+                        <option value="Installation">
+                        <option value="Komponenten">
+                        <option value="Lieferung">
+                        <option value="Carport">
+                        <option value="Sonstiges">
+                    </datalist>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Titel *</label>
+                    <input type="text" name="title" class="form-control"
+                           value="{{ product.title or '' }}" required
+                           placeholder="z.B. Carport Installation (2 Stellplaetze)">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Sortierung</label>
+                    <input type="number" name="sort_order" class="form-control"
+                           value="{{ product.sort_order or 0 }}">
+                </div>
+                <div class="col-md-12">
+                    <label class="form-label">Beschreibung</label>
+                    <textarea name="description" class="form-control" rows="3"
+                              placeholder="Detailbeschreibung fuer das PDF...">{{ product.description or '' }}</textarea>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Standard-Menge</label>
+                    <input type="text" name="default_quantity" class="form-control"
+                           value="{{ product.default_quantity or '1x' }}" placeholder="1x">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Preis 1 Stellplatz (&euro;)</label>
+                    <input type="number" name="price_1_slot" class="form-control"
+                           value="{{ product.price_1_slot if product.price_1_slot is not none else '' }}"
+                           step="0.01" placeholder="z.B. 1450.00">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Preis 2 Stellplaetze (&euro;)</label>
+                    <input type="number" name="price_2_slot" class="form-control"
+                           value="{{ product.price_2_slot if product.price_2_slot is not none else '' }}"
+                           step="0.01" placeholder="z.B. 1650.00">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">3+ Stellplaetze</label>
+                    <input type="text" name="price_3_plus" class="form-control"
+                           value="{{ product.price_3_plus or '' }}"
+                           placeholder="z.B. Preis auf Anfrage">
+                </div>
+                <div class="col-md-3">
+                    <div class="form-check mt-4">
+                        <input type="checkbox" name="is_carport" class="form-check-input" value="1"
+                               {{ 'checked' if product.is_carport }} id="isCarport">
+                        <label class="form-check-label" for="isCarport">
+                            Carport-Position (19% MwSt in DE)
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2 mb-4">
+        <button type="submit" class="btn btn-teal btn-lg">
+            <i class="bi bi-save"></i> Speichern
+        </button>
+        <a href="{{ url_for('product_list') }}" class="btn btn-outline-secondary btn-lg">
+            <i class="bi bi-x-circle"></i> Abbrechen
+        </a>
+    </div>
+</form>
+{% endblock %}

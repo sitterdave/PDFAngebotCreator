@@ -65,6 +65,19 @@ def init_db():
             updated_at TEXT NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS product_templates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            category TEXT NOT NULL DEFAULT '',
+            title TEXT NOT NULL DEFAULT '',
+            description TEXT NOT NULL DEFAULT '',
+            default_quantity TEXT NOT NULL DEFAULT '1x',
+            price_1_slot REAL DEFAULT NULL,
+            price_2_slot REAL DEFAULT NULL,
+            price_3_plus TEXT DEFAULT '',
+            is_carport INTEGER NOT NULL DEFAULT 0,
+            sort_order INTEGER NOT NULL DEFAULT 0
+        );
+
         CREATE TABLE IF NOT EXISTS quote_items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             quote_id INTEGER NOT NULL,
@@ -97,7 +110,66 @@ def init_db():
         )
         conn.commit()
 
+    # Seed product templates if empty
+    count = conn.execute("SELECT COUNT(*) as c FROM product_templates").fetchone()['c']
+    if count == 0:
+        _seed_product_templates(conn)
+
     conn.close()
+
+
+def _seed_product_templates(conn):
+    """Insert default product templates based on the carport/solar pricing."""
+    templates = [
+        # Installation
+        ('Installation', 'Carport Installation (1 Stellplatz)',
+         'Fachgerechte Montage der Carport Struktur inkl. stabiler Befestigung und abschliessender Endabnahme.',
+         '', 1450.00, None, '', 0, 10),
+        ('Installation', 'Carport Installation (2 Stellplaetze)',
+         'Fachgerechte Montage der Carport Struktur inkl. stabiler Befestigung und abschliessender Endabnahme.',
+         '', None, 1650.00, '', 0, 11),
+        ('Installation', 'Carport Installation (3+ Stellplaetze)',
+         'Fachgerechte Montage der Carport Struktur inkl. stabiler Befestigung und abschliessender Endabnahme.',
+         '', None, None, 'Preis auf Anfrage', 0, 12),
+        ('Installation', 'Installation der PV-Anlage',
+         'Professionelle Installation und Verschaltung der PV-Module nach hoechsten Standards.',
+         '', None, None, 'Preis auf Anfrage', 0, 13),
+
+        # Komponenten
+        ('Komponenten', 'PV-Module (1 Stellplatz)',
+         'Solarmodule fuer Carport-Dach.',
+         '', 990.00, None, '', 0, 20),
+        ('Komponenten', 'PV-Module (2 Stellplaetze)',
+         'Solarmodule fuer Carport-Dach.',
+         '', None, 1450.00, '', 0, 21),
+        ('Komponenten', 'PV-Module (3+ Stellplaetze)',
+         'Solarmodule fuer Carport-Dach.',
+         '', None, None, 'Preis auf Anfrage', 0, 22),
+        ('Komponenten', 'Wechselrichter (1 Stellplatz)',
+         'Wechselrichter fuer die Umwandlung von Gleich- in Wechselstrom.',
+         '1x', 1350.00, None, '', 0, 23),
+        ('Komponenten', 'Wechselrichter (2 Stellplaetze)',
+         'Wechselrichter fuer die Umwandlung von Gleich- in Wechselstrom.',
+         '1x', None, 1550.00, '', 0, 24),
+        ('Komponenten', 'Wechselrichter (3+ Stellplaetze)',
+         'Wechselrichter fuer die Umwandlung von Gleich- in Wechselstrom.',
+         '1x', None, None, 'Preis auf Anfrage', 0, 25),
+        ('Komponenten', 'Batteriespeicher',
+         'Batteriespeicher (Kapazitaet waehlbar 0-100 kWh). Preis auf Anfrage.',
+         '1x', None, None, 'Preis auf Anfrage', 0, 26),
+
+        # Lieferung
+        ('Lieferung', 'Lieferung der angebotenen Positionen',
+         'Transport und Anlieferung der im Angebot enthaltenen Komponenten per Spedition / auf Palette bis zur Bordsteinkante.',
+         '', None, None, '', 0, 30),
+    ]
+    for t in templates:
+        conn.execute('''
+            INSERT INTO product_templates (category, title, description, default_quantity,
+                price_1_slot, price_2_slot, price_3_plus, is_carport, sort_order)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', t)
+    conn.commit()
 
 
 # --- Company Settings ---
@@ -292,3 +364,71 @@ def calculate_quote_totals(items, country):
         'vat_total': vat_total,
         'brutto': netto + vat_total,
     }
+
+
+# --- Product Templates ---
+
+def get_all_product_templates():
+    conn = get_db()
+    rows = conn.execute("SELECT * FROM product_templates ORDER BY sort_order, id").fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_product_template(template_id):
+    conn = get_db()
+    row = conn.execute("SELECT * FROM product_templates WHERE id = ?", (template_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def create_product_template(data):
+    conn = get_db()
+    cursor = conn.execute('''
+        INSERT INTO product_templates (category, title, description, default_quantity,
+            price_1_slot, price_2_slot, price_3_plus, is_carport, sort_order)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (
+        data.get('category', ''),
+        data.get('title', ''),
+        data.get('description', ''),
+        data.get('default_quantity', '1x'),
+        float(data['price_1_slot']) if data.get('price_1_slot') else None,
+        float(data['price_2_slot']) if data.get('price_2_slot') else None,
+        data.get('price_3_plus', ''),
+        int(data.get('is_carport', 0)),
+        int(data.get('sort_order', 0)),
+    ))
+    conn.commit()
+    tid = cursor.lastrowid
+    conn.close()
+    return tid
+
+
+def update_product_template(template_id, data):
+    conn = get_db()
+    conn.execute('''
+        UPDATE product_templates SET category=?, title=?, description=?, default_quantity=?,
+            price_1_slot=?, price_2_slot=?, price_3_plus=?, is_carport=?, sort_order=?
+        WHERE id=?
+    ''', (
+        data.get('category', ''),
+        data.get('title', ''),
+        data.get('description', ''),
+        data.get('default_quantity', '1x'),
+        float(data['price_1_slot']) if data.get('price_1_slot') else None,
+        float(data['price_2_slot']) if data.get('price_2_slot') else None,
+        data.get('price_3_plus', ''),
+        int(data.get('is_carport', 0)),
+        int(data.get('sort_order', 0)),
+        template_id,
+    ))
+    conn.commit()
+    conn.close()
+
+
+def delete_product_template(template_id):
+    conn = get_db()
+    conn.execute("DELETE FROM product_templates WHERE id = ?", (template_id,))
+    conn.commit()
+    conn.close()
