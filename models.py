@@ -106,7 +106,7 @@ def init_db():
             "4) Bitte beachten Sie, dass Stromsparen24.at ein Service der Labsupport GmbH & Co KG ist. "
             "Deshalb erfolgt die Rechnungsstellung für alle Käufe auf Stromsparen24.at "
             "durch Labsupport GmbH & Co KG.\n\n"
-            "Partnerfirma für Installationsarbeiten: Alle Installations- und elektrischen Anschlussarbeiten "
+            "5) Partnerfirma für Installationsarbeiten: Alle Installations- und elektrischen Anschlussarbeiten "
             "werden in Zusammenarbeit mit unserer erfahrenen Partnerfirma ProPhone KG durchgeführt. "
             "Diese Partnerschaft gewährleistet eine fachgerechte und reibungslose Umsetzung Ihres Projekts.\n"
         )
@@ -150,11 +150,12 @@ def _migrate_existing_data(conn):
     terms = row['terms_text'] or ''
     company_name = row['company_name'] or ''
 
-    # Check if terms need updating: old ae/oe/ue patterns OR old empty "4)\n\n5)" numbering
+    # Check if terms need updating: old patterns or wrong numbering
     needs_update = (
         'gueltig' in terms or 'groesster' in terms or 'ueber' in terms
         or 'fuer' in terms or 'durchgefuehrt' in terms
         or '4)\n\n5)' in terms
+        or ('\nPartnerfirma' in terms and '5) Partnerfirma' not in terms)
     )
     if needs_update:
         new_terms = (
@@ -169,7 +170,7 @@ def _migrate_existing_data(conn):
             "4) Bitte beachten Sie, dass Stromsparen24.at ein Service der Labsupport GmbH & Co KG ist. "
             "Deshalb erfolgt die Rechnungsstellung für alle Käufe auf Stromsparen24.at "
             "durch Labsupport GmbH & Co KG.\n\n"
-            "Partnerfirma für Installationsarbeiten: Alle Installations- und elektrischen Anschlussarbeiten "
+            "5) Partnerfirma für Installationsarbeiten: Alle Installations- und elektrischen Anschlussarbeiten "
             "werden in Zusammenarbeit mit unserer erfahrenen Partnerfirma ProPhone KG durchgeführt. "
             "Diese Partnerschaft gewährleistet eine fachgerechte und reibungslose Umsetzung Ihres Projekts.\n"
         )
