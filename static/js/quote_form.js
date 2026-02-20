@@ -218,7 +218,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     html += '<h6 class="mt-3 mb-2 text-muted">' + escapeHtml(catName) + '</h6>';
                     html += '<div class="list-group mb-2">';
                     catItems.forEach(t => {
-                        const jsonStr = JSON.stringify(t);
+                        const qty = getTemplateQuantityDisplay(t);
                         html += '<button type="button" class="list-group-item list-group-item-action product-add-btn"'
                             + ' data-product-id="' + t.id + '">'
                             + '<div class="d-flex justify-content-between align-items-center">'
@@ -227,6 +227,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             + (t.description ? '<br><small class="text-muted">' + escapeHtml(t.description.substring(0, 100)) + '</small>' : '')
                             + '</div>'
                             + '<div class="text-end text-nowrap ms-3">'
+                            + (qty ? '<span class="product-qty badge bg-info me-1">' + escapeHtml(qty) + '</span>' : '')
                             + '<span class="product-price badge bg-secondary">' + getTemplatePrice(t) + '</span>'
                             + '</div>'
                             + '</div>'
@@ -260,6 +261,16 @@ document.addEventListener('DOMContentLoaded', function() {
                                 if (priceSpan) {
                                     priceSpan.textContent = getTemplatePrice(product);
                                 }
+                                const qtySpan = btn.querySelector('.product-qty');
+                                const qtyText = getTemplateQuantityDisplay(product);
+                                if (qtySpan) {
+                                    if (qtyText) {
+                                        qtySpan.textContent = qtyText;
+                                        qtySpan.style.display = '';
+                                    } else {
+                                        qtySpan.style.display = 'none';
+                                    }
+                                }
                             }
                         });
                     };
@@ -268,6 +279,14 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch(() => {
                 container.innerHTML = '<p class="text-danger">Fehler beim Laden der Vorlagen.</p>';
             });
+    }
+
+    function getTemplateQuantityDisplay(template) {
+        const slots = document.getElementById('slotCount') ? document.getElementById('slotCount').value : '2';
+        if (slots === '1' && template.quantity_1_slot) return template.quantity_1_slot;
+        if (slots === '2' && template.quantity_2_slot) return template.quantity_2_slot;
+        if (slots === '3' && template.quantity_3_plus_qty) return template.quantity_3_plus_qty;
+        return '';
     }
 
     function getTemplatePrice(template) {
@@ -296,8 +315,19 @@ document.addEventListener('DOMContentLoaded', function() {
         return 0;
     }
 
+    function getTemplateQuantity(product) {
+        const slots = document.getElementById('slotCount') ? document.getElementById('slotCount').value : '2';
+        if (slots === '1' && product.quantity_1_slot) return product.quantity_1_slot;
+        if (slots === '2' && product.quantity_2_slot) return product.quantity_2_slot;
+        if (slots === '3' && product.quantity_3_plus_qty) return product.quantity_3_plus_qty;
+        // Fallback: try any slot-specific quantity, then default
+        if (product.quantity_1_slot && slots === '1') return product.quantity_1_slot;
+        return product.default_quantity || '1x';
+    }
+
     function addProductToQuote(product, btnElement) {
         const price = getTemplatePriceValue(product);
+        const quantity = getTemplateQuantity(product);
         let title = product.title;
 
         // Append Stellplatz info for carport products
@@ -313,7 +343,7 @@ document.addEventListener('DOMContentLoaded', function() {
         addItemRow({
             title: title,
             description: product.description || '',
-            quantity: product.default_quantity || '1x',
+            quantity: quantity,
             price: price,
             is_carport: product.is_carport ? true : false,
         });

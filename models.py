@@ -71,6 +71,9 @@ def init_db():
             title TEXT NOT NULL DEFAULT '',
             description TEXT NOT NULL DEFAULT '',
             default_quantity TEXT NOT NULL DEFAULT '1x',
+            quantity_1_slot TEXT DEFAULT '',
+            quantity_2_slot TEXT DEFAULT '',
+            quantity_3_plus_qty TEXT DEFAULT '',
             price_1_slot REAL DEFAULT NULL,
             price_2_slot REAL DEFAULT NULL,
             price_3_plus TEXT DEFAULT '',
@@ -199,6 +202,17 @@ def _migrate_existing_data(conn):
         WHERE id = 1""")
         conn.commit()
 
+    # Add quantity_per_slot columns if missing
+    cols = [col['name'] for col in conn.execute("PRAGMA table_info(product_templates)").fetchall()]
+    if 'quantity_1_slot' not in cols:
+        conn.execute("ALTER TABLE product_templates ADD COLUMN quantity_1_slot TEXT DEFAULT ''")
+        conn.execute("ALTER TABLE product_templates ADD COLUMN quantity_2_slot TEXT DEFAULT ''")
+        conn.execute("ALTER TABLE product_templates ADD COLUMN quantity_3_plus_qty TEXT DEFAULT ''")
+        # Set default quantities for PV-Module template
+        conn.execute("""UPDATE product_templates SET quantity_1_slot='9x', quantity_2_slot='15x', quantity_3_plus_qty='24x'
+            WHERE title LIKE '%PV-Module%' AND category='Komponenten'""")
+        conn.commit()
+
     # Fix old ae/oe/ue in product template descriptions
     templates = conn.execute("SELECT id, title, description FROM product_templates").fetchall()
     for t in templates:
@@ -229,114 +243,121 @@ def _seed_product_templates(conn):
     Carport + Carport Installation = is_carport=1 (19% MwSt in DE).
     """
     # (category, title, description, default_quantity,
+    #  quantity_1_slot, quantity_2_slot, quantity_3_plus_qty,
     #  price_1_slot, price_2_slot, price_3_plus, is_carport, sort_order)
     templates = [
         # ===================== CARPORT-MODELLE =====================
-        # Modell S - Selbstmontagefreundlich (hohe Schneelast 2,6 kN/m2)
         ('Carport', 'PV-Carport Modell S - Selbstmontagefreundlich',
          'Für hohe Schneelasten bis 2,6 kN/m2. Selbstmontagefreundlich.',
-         '1x', 2150.00, None, '', 1, 1),
+         '1x', '', '', '',
+         2150.00, None, '', 1, 1),
 
-        # Modell S - inkl. PV-Module
         ('Carport', 'PV-Carport Modell S - inkl. 9 PV-Module',
          'Inkl. 9 PV-Module. Für Schneelast bis 2,6 kN/m2.',
-         '1x', 2975.00, None, '', 1, 2),
+         '1x', '', '', '',
+         2975.00, None, '', 1, 2),
 
-        # Modell S2 - 2 Stellplätze
         ('Carport', 'PV-Carport Modell S2 - Selbstmontagefreundlich',
          'Für Schneelasten bis 1,6 kN/m2. Selbstmontagefreundlich.',
-         '1x', None, 2541.67, '', 1, 3),
+         '1x', '', '', '',
+         None, 2541.67, '', 1, 3),
 
-        # Modell 01 - Modernes Carport
         ('Carport', 'PV-Carport Modell 01 - Modernes Carport',
          'Modernes Carport-Design.',
-         '1x', 3590.00, 4404.17, 'Preis auf Anfrage', 1, 4),
+         '1x', '', '', '',
+         3590.00, 4404.17, 'Preis auf Anfrage', 1, 4),
 
-        # Modell 02 - Stabil & Wetterfest
         ('Carport', 'PV-Carport Modell 02 - Stabil & Wetterfest',
          'Stabile und wetterfeste Konstruktion.',
-         '1x', None, 3441.67, 'Preis auf Anfrage', 1, 5),
+         '1x', '', '', '',
+         None, 3441.67, 'Preis auf Anfrage', 1, 5),
 
-        # Modell 03 - Stabile Carport-Struktur
         ('Carport', 'PV-Carport Modell 03 - Stabile Carport-Struktur',
          'Stabile Carport-Struktur.',
-         '1x', 4025.00, None, '', 1, 6),
+         '1x', '', '', '',
+         4025.00, None, '', 1, 6),
 
-        # Modell 04 - Robustes Einzelcarport
         ('Carport', 'PV-Carport Modell 04 - Robustes Einzelcarport',
          'Robustes Einzelcarport.',
-         '1x', 3536.67, None, '', 1, 7),
+         '1x', '', '', '',
+         3536.67, None, '', 1, 7),
 
-        # Modell 05 - Robuste Konstruktion
         ('Carport', 'PV-Carport Modell 05 - Robuste Konstruktion',
          'Robuste Konstruktion.',
-         '1x', 2420.00, 3508.33, 'Preis auf Anfrage', 1, 8),
+         '1x', '', '', '',
+         2420.00, 3508.33, 'Preis auf Anfrage', 1, 8),
 
-        # Modell 06 - Carport-Konstruktion
         ('Carport', 'PV-Carport Modell 06 - Carport-Konstruktion',
          'Carport-Konstruktion.',
-         '1x', 2640.00, 3912.50, 'Preis auf Anfrage', 1, 9),
+         '1x', '', '', '',
+         2640.00, 3912.50, 'Preis auf Anfrage', 1, 9),
 
-        # Modell 07 - Robustes Carport
         ('Carport', 'PV-Carport 07 - Robustes Carport',
          'Robustes Carport.',
-         '1x', 2550.00, None, '', 1, 10),
+         '1x', '', '', '',
+         2550.00, None, '', 1, 10),
 
         # ===================== INSTALLATION =====================
-        # Carport Installation (is_carport=1, da 19% MwSt in DE)
         ('Installation', 'Carport Installation',
          'Fachgerechte Montage der Carport Struktur inkl. stabiler Befestigung und abschließender Endabnahme.',
-         '', 1450.00, 1650.00, 'Preis auf Anfrage', 1, 20),
+         '', '', '', '',
+         1450.00, 1650.00, 'Preis auf Anfrage', 1, 20),
 
-        # PV-Anlage Installation (kein Carport -> 0% in DE)
         ('Installation', 'Installation der PV-Anlage',
          'Professionelle Installation und Verschaltung der PV-Module nach höchsten Standards.',
-         '', None, None, 'Preis auf Anfrage', 0, 21),
+         '', '', '', '',
+         None, None, 'Preis auf Anfrage', 0, 21),
 
-        # Elektrische Anschlüsse und Inbetriebnahme
         ('Installation', 'Elektrische Anschlüsse und Inbetriebnahme',
          'Installation und Anschluss des Wechselrichters, des Batteriespeichers, '
          'der DC-AC-Leitung sowie des Potentialausgleichs und des PV-Abgangsverteilers. '
          'Dies beinhaltet auch die Inbetriebnahme der Anlage und die offizielle Meldung '
          'beim zuständigen Energieversorger.',
-         '', None, None, 'Preis auf Anfrage', 0, 22),
+         '', '', '', '',
+         None, None, 'Preis auf Anfrage', 0, 22),
 
-        # Montage und Anschlussarbeiten
         ('Installation', 'Montage und Anschlussarbeiten',
          'Professionelle Installation und Verschaltung der PV-Module nach höchsten Standards, '
          'sodass sie optimal für den weiteren elektrischen Anschluss vorbereitet sind.',
-         '', None, None, 'Preis auf Anfrage', 0, 23),
+         '', '', '', '',
+         None, None, 'Preis auf Anfrage', 0, 23),
 
         # ===================== KOMPONENTEN =====================
         ('Komponenten', 'PV-Module',
          'Solarmodule für Carport-Dach.',
-         '', 990.00, 1450.00, 'Preis auf Anfrage', 0, 30),
+         '', '9x', '15x', '24x',
+         990.00, 1450.00, 'Preis auf Anfrage', 0, 30),
 
         ('Komponenten', 'Wechselrichter',
          'Wechselrichter für die Umwandlung von Gleich- in Wechselstrom.',
-         '1x', 1350.00, 1550.00, 'Preis auf Anfrage', 0, 31),
+         '1x', '', '', '',
+         1350.00, 1550.00, 'Preis auf Anfrage', 0, 31),
 
         ('Komponenten', 'Batteriespeicher',
          'Batteriespeicher (Kapazität wählbar 0-100 kWh).',
-         '1x', None, None, 'Preis auf Anfrage', 0, 32),
+         '1x', '', '', '',
+         None, None, 'Preis auf Anfrage', 0, 32),
 
         ('Komponenten', 'Elektromaterialien inkl. PV Abgangsverteiler',
          'Enthält: MC4-Stecker, Solarkabel, Rohr, Befestigungsmaterial sowie Komponenten '
          'für den PV-Abgangsverteiler (Fehlerstromschutzschalter, Leitungsschutzschalter, '
          'Verdrahtungsmaterial).',
-         '', None, None, 'Preis auf Anfrage', 0, 33),
+         '', '', '', '',
+         None, None, 'Preis auf Anfrage', 0, 33),
 
         # ===================== LIEFERUNG =====================
         ('Lieferung', 'Lieferung der angebotenen Positionen',
          'Transport und Anlieferung der im Angebot enthaltenen Komponenten per Spedition / '
          'auf Palette bis zur Bordsteinkante.',
-         '', None, None, '', 0, 40),
+         '', '', '', '',
+         None, None, '', 0, 40),
     ]
     for t in templates:
         conn.execute('''
             INSERT INTO product_templates (category, title, description, default_quantity,
+                quantity_1_slot, quantity_2_slot, quantity_3_plus_qty,
                 price_1_slot, price_2_slot, price_3_plus, is_carport, sort_order)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', t)
     conn.commit()
 
@@ -555,13 +576,17 @@ def create_product_template(data):
     conn = get_db()
     cursor = conn.execute('''
         INSERT INTO product_templates (category, title, description, default_quantity,
+            quantity_1_slot, quantity_2_slot, quantity_3_plus_qty,
             price_1_slot, price_2_slot, price_3_plus, is_carport, sort_order)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         data.get('category', ''),
         data.get('title', ''),
         data.get('description', ''),
         data.get('default_quantity', '1x'),
+        data.get('quantity_1_slot', ''),
+        data.get('quantity_2_slot', ''),
+        data.get('quantity_3_plus_qty', ''),
         float(data['price_1_slot']) if data.get('price_1_slot') else None,
         float(data['price_2_slot']) if data.get('price_2_slot') else None,
         data.get('price_3_plus', ''),
@@ -578,6 +603,7 @@ def update_product_template(template_id, data):
     conn = get_db()
     conn.execute('''
         UPDATE product_templates SET category=?, title=?, description=?, default_quantity=?,
+            quantity_1_slot=?, quantity_2_slot=?, quantity_3_plus_qty=?,
             price_1_slot=?, price_2_slot=?, price_3_plus=?, is_carport=?, sort_order=?
         WHERE id=?
     ''', (
@@ -585,6 +611,9 @@ def update_product_template(template_id, data):
         data.get('title', ''),
         data.get('description', ''),
         data.get('default_quantity', '1x'),
+        data.get('quantity_1_slot', ''),
+        data.get('quantity_2_slot', ''),
+        data.get('quantity_3_plus_qty', ''),
         float(data['price_1_slot']) if data.get('price_1_slot') else None,
         float(data['price_2_slot']) if data.get('price_2_slot') else None,
         data.get('price_3_plus', ''),

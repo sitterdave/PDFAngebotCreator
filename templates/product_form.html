@@ -50,6 +50,21 @@
                            value="{{ product.default_quantity or '1x' }}" placeholder="1x">
                 </div>
                 <div class="col-md-3">
+                    <label class="form-label">Menge 1 Stellplatz</label>
+                    <input type="text" name="quantity_1_slot" class="form-control"
+                           value="{{ product.quantity_1_slot or '' }}" placeholder="z.B. 9x">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Menge 2 Stellplätze</label>
+                    <input type="text" name="quantity_2_slot" class="form-control"
+                           value="{{ product.quantity_2_slot or '' }}" placeholder="z.B. 15x">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Menge 3+ Stellplätze</label>
+                    <input type="text" name="quantity_3_plus_qty" class="form-control"
+                           value="{{ product.quantity_3_plus_qty or '' }}" placeholder="z.B. 24x">
+                </div>
+                <div class="col-md-3">
                     <label class="form-label">Preis 1 Stellplatz (&euro;)</label>
                     <input type="number" name="price_1_slot" class="form-control"
                            value="{{ product.price_1_slot if product.price_1_slot is not none else '' }}"
