@@ -56,14 +56,26 @@ class QuotePDF(FPDF):
         self.company = company
         self.set_auto_page_break(auto=True, margin=30)
 
-        # Try to load DejaVu fonts for Unicode, fallback to Helvetica
+        # Try to load Verdana, fallback to DejaVu, then Helvetica
         font_dir = os.path.join(os.path.dirname(__file__), 'static', 'fonts')
+
+        verdana = os.path.join(font_dir, 'Verdana.ttf')
+        verdana_bold = os.path.join(font_dir, 'Verdana-Bold.ttf')
+        verdana_italic = os.path.join(font_dir, 'Verdana-Italic.ttf')
+        verdana_bi = os.path.join(font_dir, 'Verdana-BoldItalic.ttf')
+
         dejavu = os.path.join(font_dir, 'DejaVuSans.ttf')
         dejavu_bold = os.path.join(font_dir, 'DejaVuSans-Bold.ttf')
         dejavu_italic = os.path.join(font_dir, 'DejaVuSans-Oblique.ttf')
         dejavu_bi = os.path.join(font_dir, 'DejaVuSans-BoldOblique.ttf')
 
-        if os.path.exists(dejavu):
+        if os.path.exists(verdana):
+            self.add_font('Verdana', '', verdana, uni=True)
+            self.add_font('Verdana', 'B', verdana_bold if os.path.exists(verdana_bold) else verdana, uni=True)
+            self.add_font('Verdana', 'I', verdana_italic if os.path.exists(verdana_italic) else verdana, uni=True)
+            self.add_font('Verdana', 'BI', verdana_bi if os.path.exists(verdana_bi) else verdana, uni=True)
+            self.f = 'Verdana'
+        elif os.path.exists(dejavu):
             self.add_font('DejaVu', '', dejavu, uni=True)
             self.add_font('DejaVu', 'B', dejavu_bold if os.path.exists(dejavu_bold) else dejavu, uni=True)
             self.add_font('DejaVu', 'I', dejavu_italic if os.path.exists(dejavu_italic) else dejavu, uni=True)
@@ -78,7 +90,7 @@ class QuotePDF(FPDF):
         if logo:
             full_path = os.path.join(STATIC_DIR, 'uploads', logo)
             if os.path.exists(full_path):
-                self.image(full_path, x=10, y=8, h=20)
+                self.image(full_path, x=10, y=6, h=28)
 
         # Brand slogan (if no logo, show brand name)
         brand = self.company.get('brand_slogan', '') or self.company.get('brand_name', '')
@@ -103,7 +115,7 @@ class QuotePDF(FPDF):
                 self.set_xy(140, y_pos)
                 self.cell(60, 4, website, align='R', ln=True)
 
-        self.set_y(35)
+        self.set_y(40)
 
     def footer(self):
         self.set_y(-25)
@@ -313,7 +325,7 @@ def _draw_items_table(pdf, totals, country):
     """Draw the items table matching the example layout."""
     f = pdf.f
 
-    # Column widths: Pos | Beschreibung | Menge | Gesamtkosten [EUR]
+    # Column widths: Pos | Beschreibung | Menge | Gesamtkosten
     col_pos = 20
     col_desc = 85
     col_menge = 30
@@ -321,7 +333,6 @@ def _draw_items_table(pdf, totals, country):
     table_w = col_pos + col_desc + col_menge + col_total
 
     x_start = 15
-    headers = ['Pos', 'Beschreibung', 'Menge', 'Gesamtkosten\n[EUR]']
 
     # Table header with blue background
     pdf.set_fill_color(*BLUE)
@@ -329,20 +340,18 @@ def _draw_items_table(pdf, totals, country):
     pdf.set_font(f, 'B', 8)
     pdf.set_draw_color(*BLUE)
 
-    hx = x_start
-    pdf.set_x(hx)
+    pdf.set_x(x_start)
     pdf.cell(col_pos, 10, 'Pos', border=1, align='C', fill=True)
     pdf.cell(col_desc, 10, 'Beschreibung', border=1, align='C', fill=True)
     pdf.cell(col_menge, 10, 'Menge', border=1, align='C', fill=True)
-    # Multi-line header for Gesamtkosten
+    # Two-line header for Gesamtkosten
     gk_x = pdf.get_x()
     gk_y = pdf.get_y()
     pdf.cell(col_total, 10, '', border=1, fill=True)
-    # Center "Gesamtkosten" and "[EUR]" in the cell
     pdf.set_xy(gk_x, gk_y + 1)
     pdf.cell(col_total, 4, 'Gesamtkosten', align='C')
     pdf.set_xy(gk_x, gk_y + 5.5)
-    pdf.cell(col_total, 4, '[EUR]', align='C')
+    pdf.cell(col_total, 4, '(\u20ac)', align='C')
 
     pdf.set_y(gk_y + 10)
 
@@ -391,7 +400,7 @@ def _draw_items_table(pdf, totals, country):
             pdf.set_xy(gk_x2, gk_y2 + 1)
             pdf.cell(col_total, 4, 'Gesamtkosten', align='C')
             pdf.set_xy(gk_x2, gk_y2 + 5.5)
-            pdf.cell(col_total, 4, '[EUR]', align='C')
+            pdf.cell(col_total, 4, '(\u20ac)', align='C')
             pdf.set_y(gk_y2 + 10)
             pdf.set_text_color(*BLACK)
             pdf.set_draw_color(180, 180, 180)
@@ -441,35 +450,33 @@ def _draw_totals_box(pdf, totals, country):
     f = pdf.f
 
     box_x = 110
-    label_w = 45
-    val_w = 35
+    label_w = 50
+    val_w = 40
+    total_w = label_w + val_w
 
     pdf.set_draw_color(180, 180, 180)
     pdf.set_line_width(0.3)
 
-    y_start = pdf.get_y() + 2
+    y_start = pdf.get_y() + 4
 
-    # Summe netto [EUR]
+    # Summe netto
     pdf.set_xy(box_x, y_start)
-    pdf.set_font(f, 'B', 9)
+    pdf.set_font(f, '', 9)
     pdf.set_text_color(*BLACK)
-    pdf.cell(label_w, 6, 'Summe netto', border='TB', align='L')
-    pdf.cell(val_w, 6, fmt(totals['netto']), border='TB', align='R')
+    pdf.cell(label_w, 7, 'Summe netto', border=0, align='L')
+    pdf.cell(val_w, 7, fmt(totals['netto']) + ' \u20ac', border=0, align='R')
     pdf.ln()
 
-    # [EUR] label row
-    pdf.set_xy(box_x, pdf.get_y())
-    pdf.set_font(f, '', 8)
-    pdf.cell(label_w, 5, '[EUR]', border=0, align='L')
-    pdf.cell(val_w, 5, '', border=0)
-    pdf.ln()
+    # Thin separator line
+    pdf.set_draw_color(200, 200, 200)
+    pdf.line(box_x, pdf.get_y(), box_x + total_w, pdf.get_y())
 
     # MwSt line(s)
     if country == 'AT':
         pdf.set_xy(box_x, pdf.get_y())
         pdf.set_font(f, '', 9)
-        pdf.cell(label_w, 6, '20 % MwSt.', border=0, align='L')
-        pdf.cell(val_w, 6, fmt(totals['vat_total']), border=0, align='R')
+        pdf.cell(label_w, 7, '20 % MwSt.', border=0, align='L')
+        pdf.cell(val_w, 7, fmt(totals['vat_total']) + ' \u20ac', border=0, align='R')
         pdf.ln()
     elif country == 'DE':
         vat_19 = sum(i['vat_amount'] for i in totals['positions'] if i['vat_rate'] == 19.0)
@@ -477,24 +484,19 @@ def _draw_totals_box(pdf, totals, country):
         if vat_19 > 0:
             pdf.set_xy(box_x, pdf.get_y())
             pdf.set_font(f, '', 9)
-            pdf.cell(label_w, 6, '19 % MwSt. (Carport)', border=0, align='L')
-            pdf.cell(val_w, 6, fmt(vat_19), border=0, align='R')
+            pdf.cell(label_w, 7, '19 % MwSt. (Carport)', border=0, align='L')
+            pdf.cell(val_w, 7, fmt(vat_19) + ' \u20ac', border=0, align='R')
             pdf.ln()
         if netto_0 > 0:
             pdf.set_xy(box_x, pdf.get_y())
             pdf.set_font(f, '', 9)
-            pdf.cell(label_w, 6, '0 % MwSt. (Sonstiges)', border=0, align='L')
-            pdf.cell(val_w, 6, '0,00', border=0, align='R')
+            pdf.cell(label_w, 7, '0 % MwSt. (Sonstiges)', border=0, align='L')
+            pdf.cell(val_w, 7, '0,00 \u20ac', border=0, align='R')
             pdf.ln()
 
-    # Summe brutto
+    # Summe brutto - bold with top/bottom border
     pdf.set_xy(box_x, pdf.get_y())
+    pdf.set_draw_color(80, 80, 80)
     pdf.set_font(f, 'B', 10)
-    pdf.cell(label_w, 7, 'Summe brutto', border='TB', align='L')
-    pdf.cell(val_w, 7, fmt(totals['brutto']), border='TB', align='R')
-    pdf.ln()
-
-    # [EUR] label
-    pdf.set_xy(box_x, pdf.get_y())
-    pdf.set_font(f, '', 8)
-    pdf.cell(label_w, 5, '[EUR]', border=0, align='L')
+    pdf.cell(label_w, 8, 'Summe brutto', border='TB', align='L')
+    pdf.cell(val_w, 8, fmt(totals['brutto']) + ' \u20ac', border='TB', align='R')
