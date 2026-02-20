@@ -279,14 +279,14 @@ document.addEventListener('DOMContentLoaded', function() {
             is_carport: product.is_carport ? true : false,
         });
 
-        // Visual feedback: flash the button green instead of closing modal
+        // Visual feedback: flash the button blue instead of closing modal
         if (btnElement) {
             const origBg = btnElement.style.backgroundColor;
             const origColor = btnElement.style.color;
-            btnElement.style.backgroundColor = '#00977080';
+            btnElement.style.backgroundColor = '#1976D280';
             btnElement.style.color = '#fff';
             const badge = document.createElement('span');
-            badge.className = 'badge bg-success ms-2 added-badge';
+            badge.className = 'badge bg-primary ms-2 added-badge';
             badge.textContent = 'Hinzugefügt!';
             btnElement.querySelector('.d-flex').appendChild(badge);
             setTimeout(() => {

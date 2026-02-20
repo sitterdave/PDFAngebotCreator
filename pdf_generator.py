@@ -3,7 +3,7 @@ PDF Generator that matches the Stromsparen24 quote layout:
 - Logo/brand top area
 - Two-column: Empfänger (left) / Ersteller (right)
 - Angebotsdetails section
-- Items table with teal header (Pos | Beschreibung | Menge | Gesamtkosten)
+- Items table with blue header (Pos | Beschreibung | Menge | Gesamtkosten)
 - Totals box (Summe netto, MwSt, Summe brutto)
 - Footer with company legal info, UID, bank details
 - Page 2: Terms and conditions with signature line
@@ -16,8 +16,8 @@ from models import calculate_quote_totals, get_company_settings
 
 STATIC_DIR = os.path.join(os.path.dirname(__file__), 'static')
 
-# Teal/green accent color matching the example
-TEAL = (0, 151, 136)
+# Blue accent color matching the brand
+BLUE = (25, 118, 210)
 BLACK = (0, 0, 0)
 GRAY = (100, 100, 100)
 WHITE = (255, 255, 255)
@@ -84,7 +84,7 @@ class QuotePDF(FPDF):
         brand = self.company.get('brand_slogan', '') or self.company.get('brand_name', '')
         if brand and not logo:
             self.set_font(self.f, 'B', 14)
-            self.set_text_color(*TEAL)
+            self.set_text_color(*BLUE)
             self.set_xy(10, 10)
             self.cell(100, 8, brand, ln=False)
 
@@ -323,11 +323,11 @@ def _draw_items_table(pdf, totals, country):
     x_start = 15
     headers = ['Pos', 'Beschreibung', 'Menge', 'Gesamtkosten\n[EUR]']
 
-    # Table header with teal background
-    pdf.set_fill_color(*TEAL)
+    # Table header with blue background
+    pdf.set_fill_color(*BLUE)
     pdf.set_text_color(*WHITE)
     pdf.set_font(f, 'B', 8)
-    pdf.set_draw_color(*TEAL)
+    pdf.set_draw_color(*BLUE)
 
     hx = x_start
     pdf.set_x(hx)
@@ -377,10 +377,10 @@ def _draw_items_table(pdf, totals, country):
         if pdf.get_y() + row_h > pdf.h - 35:
             pdf.add_page()
             # Redraw header
-            pdf.set_fill_color(*TEAL)
+            pdf.set_fill_color(*BLUE)
             pdf.set_text_color(*WHITE)
             pdf.set_font(f, 'B', 8)
-            pdf.set_draw_color(*TEAL)
+            pdf.set_draw_color(*BLUE)
             pdf.set_x(x_start)
             pdf.cell(col_pos, 10, 'Pos', border=1, align='C', fill=True)
             pdf.cell(col_desc, 10, 'Beschreibung', border=1, align='C', fill=True)
