@@ -343,6 +343,10 @@ document.addEventListener('DOMContentLoaded', function() {
         const slots = getSlotCount();
         if (slots === '1' && template.price_1_slot != null) return template.price_1_slot;
         if (slots === '2' && template.price_2_slot != null) return template.price_2_slot;
+        if (slots === '3' && template.price_3_plus) {
+            const parsed = parseFloat(template.price_3_plus);
+            if (!isNaN(parsed)) return parsed;
+        }
         if (template.price_1_slot != null) return template.price_1_slot;
         if (template.price_2_slot != null) return template.price_2_slot;
         return 0;
