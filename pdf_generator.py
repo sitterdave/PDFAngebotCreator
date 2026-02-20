@@ -506,13 +506,14 @@ def _draw_items_table(pdf, totals, country):
 
 
 def _draw_totals_box(pdf, totals, country):
-    """Draw the totals summary box on the right side."""
+    """Draw the totals summary box centered on the page."""
     f = pdf.f
 
-    box_x = 115
     label_w = 45
     val_w = 40
     total_w = label_w + val_w
+    page_w = 210
+    box_x = (page_w - total_w) / 2
 
     pdf.set_line_width(0.3)
 
