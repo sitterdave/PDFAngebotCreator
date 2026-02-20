@@ -202,18 +202,29 @@ def _draw_terms_text(pdf, terms):
     f = pdf.f
     paragraphs = terms.split('\n')
     heading_pattern = re.compile(r'^(\d+)\)\s+(.+)$')
+    first_line = True
 
     for line in paragraphs:
         line_stripped = line.strip()
         match = heading_pattern.match(line_stripped)
-        if match:
+        if first_line and line_stripped and not match:
+            # Main title line (e.g. "Vertrags- und Zahlungsbedingungen")
+            pdf.set_font(f, 'B', 10)
+            pdf.set_text_color(*BLUE)
+            pdf.set_x(pdf.l_margin)
+            pdf.multi_cell(0, 5, line_stripped, align='L')
+            pdf.ln(1)
+            first_line = False
+        elif match:
             # Bold heading line
+            first_line = False
             pdf.ln(2)
             pdf.set_font(f, 'B', 9)
             pdf.set_text_color(*BLUE)
             pdf.set_x(pdf.l_margin)
             pdf.multi_cell(0, 5, line_stripped, align='L')
         elif line_stripped:
+            first_line = False
             pdf.set_font(f, '', 9)
             pdf.set_text_color(*BLACK)
             pdf.set_x(pdf.l_margin)
