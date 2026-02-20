@@ -90,7 +90,7 @@ class QuotePDF(FPDF):
         if logo:
             full_path = os.path.join(STATIC_DIR, 'uploads', logo)
             if os.path.exists(full_path):
-                self.image(full_path, x=10, y=6, h=28)
+                self.image(full_path, x=10, y=5, h=32)
 
         # Brand slogan (if no logo, show brand name)
         brand = self.company.get('brand_slogan', '') or self.company.get('brand_name', '')
@@ -302,7 +302,7 @@ def generate_quote_pdf(quote, items):
 
         pdf.set_font(f, '', 9)
         pdf.set_text_color(*BLACK)
-        pdf.multi_cell(0, 5, terms)
+        pdf.multi_cell(0, 5, terms, align='L')
 
         pdf.ln(8)
 
@@ -373,9 +373,9 @@ def _draw_items_table(pdf, totals, country):
 
         # Estimate height needed
         pdf.set_font(f, 'B', 9)
-        title_lines = pdf.multi_cell(col_desc - 4, 5, title, dry_run=True, output='LINES') if title else []
+        title_lines = pdf.multi_cell(col_desc - 4, 5, title, align='L', dry_run=True, output='LINES') if title else []
         pdf.set_font(f, '', 8)
-        desc_lines = pdf.multi_cell(col_desc - 4, 4.5, desc, dry_run=True, output='LINES') if desc else []
+        desc_lines = pdf.multi_cell(col_desc - 4, 4.5, desc, align='L', dry_run=True, output='LINES') if desc else []
 
         title_h = len(title_lines) * 5 if title_lines else 0
         desc_h = len(desc_lines) * 4.5 if desc_lines else 0
@@ -427,11 +427,11 @@ def _draw_items_table(pdf, totals, country):
 
         if title:
             pdf.set_font(f, 'B', 9)
-            pdf.multi_cell(col_desc - 4, 5, title)
+            pdf.multi_cell(col_desc - 4, 5, title, align='L')
         if desc:
             pdf.set_font(f, '', 8)
             pdf.set_x(desc_x)
-            pdf.multi_cell(col_desc - 4, 4.5, desc)
+            pdf.multi_cell(col_desc - 4, 4.5, desc, align='L')
 
         # Menge (centered vertically)
         pdf.set_font(f, '', 9)
