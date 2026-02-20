@@ -219,12 +219,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     html += '<div class="list-group mb-2">';
                     catItems.forEach(t => {
                         const qty = getTemplateQuantityDisplay(t);
+                        const displayTitle = getTemplateTitle(t);
+                        const displayDesc = getTemplateDescription(t);
                         html += '<button type="button" class="list-group-item list-group-item-action product-add-btn"'
                             + ' data-product-id="' + t.id + '">'
                             + '<div class="d-flex justify-content-between align-items-center">'
                             + '<div>'
-                            + '<strong>' + escapeHtml(t.title) + '</strong>'
-                            + (t.description ? '<br><small class="text-muted">' + escapeHtml(t.description.substring(0, 100)) + '</small>' : '')
+                            + '<strong class="product-title">' + escapeHtml(displayTitle) + '</strong>'
+                            + (displayDesc ? '<br><small class="text-muted product-desc">' + escapeHtml(displayDesc.substring(0, 100)) + '</small>' : '')
                             + '</div>'
                             + '<div class="text-end text-nowrap ms-3">'
                             + (qty ? '<span class="product-qty badge bg-info me-1">' + escapeHtml(qty) + '</span>' : '')
@@ -258,18 +260,19 @@ document.addEventListener('DOMContentLoaded', function() {
                             const product = templates.find(t => t.id === pid);
                             if (product) {
                                 const priceSpan = btn.querySelector('.product-price');
-                                if (priceSpan) {
-                                    priceSpan.textContent = getTemplatePrice(product);
-                                }
+                                if (priceSpan) priceSpan.textContent = getTemplatePrice(product);
                                 const qtySpan = btn.querySelector('.product-qty');
                                 const qtyText = getTemplateQuantityDisplay(product);
                                 if (qtySpan) {
-                                    if (qtyText) {
-                                        qtySpan.textContent = qtyText;
-                                        qtySpan.style.display = '';
-                                    } else {
-                                        qtySpan.style.display = 'none';
-                                    }
+                                    if (qtyText) { qtySpan.textContent = qtyText; qtySpan.style.display = ''; }
+                                    else { qtySpan.style.display = 'none'; }
+                                }
+                                const titleEl = btn.querySelector('.product-title');
+                                if (titleEl) titleEl.textContent = getTemplateTitle(product);
+                                const descEl = btn.querySelector('.product-desc');
+                                if (descEl) {
+                                    const d = getTemplateDescription(product);
+                                    descEl.textContent = d ? d.substring(0, 100) : '';
                                 }
                             }
                         });
@@ -281,8 +284,29 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 
+    function getSlotCount() {
+        const el = document.getElementById('slotCount');
+        return el ? el.value : '2';
+    }
+
+    function getTemplateTitle(template) {
+        const slots = getSlotCount();
+        if (slots === '1' && template.title_1_slot) return template.title_1_slot;
+        if (slots === '2' && template.title_2_slot) return template.title_2_slot;
+        if (slots === '3' && template.title_3_plus_title) return template.title_3_plus_title;
+        return template.title || '';
+    }
+
+    function getTemplateDescription(template) {
+        const slots = getSlotCount();
+        if (slots === '1' && template.description_1_slot) return template.description_1_slot;
+        if (slots === '2' && template.description_2_slot) return template.description_2_slot;
+        if (slots === '3' && template.description_3_plus_desc) return template.description_3_plus_desc;
+        return template.description || '';
+    }
+
     function getTemplateQuantityDisplay(template) {
-        const slots = document.getElementById('slotCount') ? document.getElementById('slotCount').value : '2';
+        const slots = getSlotCount();
         if (slots === '1' && template.quantity_1_slot) return template.quantity_1_slot;
         if (slots === '2' && template.quantity_2_slot) return template.quantity_2_slot;
         if (slots === '3' && template.quantity_3_plus_qty) return template.quantity_3_plus_qty;
@@ -290,7 +314,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function getTemplatePrice(template) {
-        const slots = document.getElementById('slotCount') ? document.getElementById('slotCount').value : '2';
+        const slots = getSlotCount();
         if (slots === '1' && template.price_1_slot != null) {
             return formatCurrency(template.price_1_slot) + ' \u20AC';
         } else if (slots === '2' && template.price_2_slot != null) {
@@ -298,7 +322,6 @@ document.addEventListener('DOMContentLoaded', function() {
         } else if (slots === '3' && template.price_3_plus) {
             return template.price_3_plus;
         }
-        // Fallback: try any available price
         if (template.price_1_slot != null) return formatCurrency(template.price_1_slot) + ' \u20AC';
         if (template.price_2_slot != null) return formatCurrency(template.price_2_slot) + ' \u20AC';
         if (template.price_3_plus) return template.price_3_plus;
@@ -306,43 +329,40 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function getTemplatePriceValue(template) {
-        const slots = document.getElementById('slotCount') ? document.getElementById('slotCount').value : '2';
+        const slots = getSlotCount();
         if (slots === '1' && template.price_1_slot != null) return template.price_1_slot;
         if (slots === '2' && template.price_2_slot != null) return template.price_2_slot;
-        // Fallback
         if (template.price_1_slot != null) return template.price_1_slot;
         if (template.price_2_slot != null) return template.price_2_slot;
         return 0;
     }
 
     function getTemplateQuantity(product) {
-        const slots = document.getElementById('slotCount') ? document.getElementById('slotCount').value : '2';
+        const slots = getSlotCount();
         if (slots === '1' && product.quantity_1_slot) return product.quantity_1_slot;
         if (slots === '2' && product.quantity_2_slot) return product.quantity_2_slot;
         if (slots === '3' && product.quantity_3_plus_qty) return product.quantity_3_plus_qty;
-        // Fallback: try any slot-specific quantity, then default
-        if (product.quantity_1_slot && slots === '1') return product.quantity_1_slot;
         return product.default_quantity || '1x';
     }
 
     function addProductToQuote(product, btnElement) {
         const price = getTemplatePriceValue(product);
         const quantity = getTemplateQuantity(product);
-        let title = product.title;
+        let title = getTemplateTitle(product);
+        const description = getTemplateDescription(product);
 
         // Append Stellplatz info for carport products
         if (product.is_carport && product.category === 'Carport') {
-            const slots = document.getElementById('slotCount') ? document.getElementById('slotCount').value : '2';
+            const slots = getSlotCount();
             const slotLabel = slots === '1' ? '1 Stellplatz' : slots + ' Stellplätze';
-            // Only append if title doesn't already contain Stellplatz info
             if (!/Stellpl/i.test(title)) {
-                title += ' – ' + slotLabel;
+                title += ' \u2013 ' + slotLabel;
             }
         }
 
         addItemRow({
             title: title,
-            description: product.description || '',
+            description: description,
             quantity: quantity,
             price: price,
             is_carport: product.is_carport ? true : false,

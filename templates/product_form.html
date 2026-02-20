@@ -29,10 +29,10 @@
                     </datalist>
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label">Titel *</label>
+                    <label class="form-label">Titel (Standard) *</label>
                     <input type="text" name="title" class="form-control"
                            value="{{ product.title or '' }}" required
-                           placeholder="z.B. Carport Installation (2 Stellplätze)">
+                           placeholder="z.B. Wechselrichter">
                 </div>
                 <div class="col-md-2">
                     <label class="form-label">Sortierung</label>
@@ -40,7 +40,7 @@
                            value="{{ product.sort_order or 0 }}">
                 </div>
                 <div class="col-md-12">
-                    <label class="form-label">Beschreibung</label>
+                    <label class="form-label">Beschreibung (Standard)</label>
                     <textarea name="description" class="form-control" rows="3"
                               placeholder="Detailbeschreibung für das PDF...">{{ product.description or '' }}</textarea>
                 </div>
@@ -50,39 +50,6 @@
                            value="{{ product.default_quantity or '1x' }}" placeholder="1x">
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Menge 1 Stellplatz</label>
-                    <input type="text" name="quantity_1_slot" class="form-control"
-                           value="{{ product.quantity_1_slot or '' }}" placeholder="z.B. 9x">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Menge 2 Stellplätze</label>
-                    <input type="text" name="quantity_2_slot" class="form-control"
-                           value="{{ product.quantity_2_slot or '' }}" placeholder="z.B. 15x">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Menge 3+ Stellplätze</label>
-                    <input type="text" name="quantity_3_plus_qty" class="form-control"
-                           value="{{ product.quantity_3_plus_qty or '' }}" placeholder="z.B. 24x">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Preis 1 Stellplatz (&euro;)</label>
-                    <input type="number" name="price_1_slot" class="form-control"
-                           value="{{ product.price_1_slot if product.price_1_slot is not none else '' }}"
-                           step="0.01" placeholder="z.B. 1450.00">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">Preis 2 Stellplätze (&euro;)</label>
-                    <input type="number" name="price_2_slot" class="form-control"
-                           value="{{ product.price_2_slot if product.price_2_slot is not none else '' }}"
-                           step="0.01" placeholder="z.B. 1650.00">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label">3+ Stellplätze</label>
-                    <input type="text" name="price_3_plus" class="form-control"
-                           value="{{ product.price_3_plus or '' }}"
-                           placeholder="z.B. Preis auf Anfrage">
-                </div>
-                <div class="col-md-3">
                     <div class="form-check mt-4">
                         <input type="checkbox" name="is_carport" class="form-check-input" value="1"
                                {{ 'checked' if product.is_carport }} id="isCarport">
@@ -90,6 +57,92 @@
                             Carport-Position (19% MwSt in DE)
                         </label>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stellplatz-spezifische Overrides -->
+    <div class="card mb-4">
+        <div class="card-header bg-teal text-white">
+            <i class="bi bi-grid-3x3-gap"></i> Pro Stellplatz (optional - überschreibt Standard)
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <!-- 1 Stellplatz -->
+                <div class="col-12"><h6 class="text-muted mb-0">1 Stellplatz</h6></div>
+                <div class="col-md-4">
+                    <label class="form-label">Titel 1 SP</label>
+                    <input type="text" name="title_1_slot" class="form-control"
+                           value="{{ product.title_1_slot or '' }}" placeholder="z.B. GoodWe GW6.5KN-ET...">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Beschreibung 1 SP</label>
+                    <textarea name="description_1_slot" class="form-control" rows="2"
+                              placeholder="Spezifische Beschreibung...">{{ product.description_1_slot or '' }}</textarea>
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label">Menge</label>
+                    <input type="text" name="quantity_1_slot" class="form-control"
+                           value="{{ product.quantity_1_slot or '' }}" placeholder="9x">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Preis 1 SP (&euro;)</label>
+                    <input type="number" name="price_1_slot" class="form-control"
+                           value="{{ product.price_1_slot if product.price_1_slot is not none else '' }}"
+                           step="0.01" placeholder="z.B. 1085.00">
+                </div>
+
+                <hr class="my-1">
+
+                <!-- 2 Stellplätze -->
+                <div class="col-12"><h6 class="text-muted mb-0">2 Stellplätze</h6></div>
+                <div class="col-md-4">
+                    <label class="form-label">Titel 2 SP</label>
+                    <input type="text" name="title_2_slot" class="form-control"
+                           value="{{ product.title_2_slot or '' }}" placeholder="z.B. GoodWe GW8KN-ET...">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Beschreibung 2 SP</label>
+                    <textarea name="description_2_slot" class="form-control" rows="2"
+                              placeholder="Spezifische Beschreibung...">{{ product.description_2_slot or '' }}</textarea>
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label">Menge</label>
+                    <input type="text" name="quantity_2_slot" class="form-control"
+                           value="{{ product.quantity_2_slot or '' }}" placeholder="15x">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Preis 2 SP (&euro;)</label>
+                    <input type="number" name="price_2_slot" class="form-control"
+                           value="{{ product.price_2_slot if product.price_2_slot is not none else '' }}"
+                           step="0.01" placeholder="z.B. 1211.00">
+                </div>
+
+                <hr class="my-1">
+
+                <!-- 3+ Stellplätze -->
+                <div class="col-12"><h6 class="text-muted mb-0">3+ Stellplätze</h6></div>
+                <div class="col-md-4">
+                    <label class="form-label">Titel 3+ SP</label>
+                    <input type="text" name="title_3_plus_title" class="form-control"
+                           value="{{ product.title_3_plus_title or '' }}" placeholder="Optional">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Beschreibung 3+ SP</label>
+                    <textarea name="description_3_plus_desc" class="form-control" rows="2"
+                              placeholder="Optional">{{ product.description_3_plus_desc or '' }}</textarea>
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label">Menge</label>
+                    <input type="text" name="quantity_3_plus_qty" class="form-control"
+                           value="{{ product.quantity_3_plus_qty or '' }}" placeholder="24x">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Preis 3+ SP</label>
+                    <input type="text" name="price_3_plus" class="form-control"
+                           value="{{ product.price_3_plus or '' }}"
+                           placeholder="z.B. Preis auf Anfrage">
                 </div>
             </div>
         </div>
