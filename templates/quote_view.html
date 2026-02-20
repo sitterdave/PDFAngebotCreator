@@ -25,12 +25,12 @@
 <div class="row g-4">
     <!-- Left column: Quote details -->
     <div class="col-md-8">
-        <!-- Two-column: Empfaenger / Ersteller -->
+        <!-- Two-column: Empfänger / Ersteller -->
         <div class="row g-4 mb-4">
             <div class="col-md-6">
                 <div class="card h-100">
                     <div class="card-header bg-teal text-white">
-                        <i class="bi bi-person"></i> Empfaenger
+                        <i class="bi bi-person"></i> Empfänger
                     </div>
                     <div class="card-body">
                         {% if quote.customer_company %}
@@ -151,14 +151,14 @@
                         <td>{{ quote.date }}</td>
                     </tr>
                     <tr>
-                        <td class="text-muted">Gueltig bis:</td>
+                        <td class="text-muted">Gültig bis:</td>
                         <td>{{ quote.valid_until }}</td>
                     </tr>
                     <tr>
                         <td class="text-muted">Land:</td>
                         <td>
                             <span class="badge {{ 'bg-primary' if quote.country == 'DE' else 'bg-teal' }}">
-                                {{ 'Deutschland' if quote.country == 'DE' else 'Oesterreich' }}
+                                {{ 'Deutschland' if quote.country == 'DE' else 'Österreich' }}
                             </span>
                         </td>
                     </tr>
@@ -197,9 +197,9 @@
         <div class="card border-danger">
             <div class="card-body">
                 <form method="post" action="{{ url_for('delete_quote_route', quote_id=quote.id) }}"
-                      onsubmit="return confirm('Angebot wirklich loeschen?')">
+                      onsubmit="return confirm('Angebot wirklich löschen?')">
                     <button type="submit" class="btn btn-outline-danger w-100">
-                        <i class="bi bi-trash"></i> Angebot loeschen
+                        <i class="bi bi-trash"></i> Angebot löschen
                     </button>
                 </form>
             </div>

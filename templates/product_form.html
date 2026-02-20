@@ -32,7 +32,7 @@
                     <label class="form-label">Titel *</label>
                     <input type="text" name="title" class="form-control"
                            value="{{ product.title or '' }}" required
-                           placeholder="z.B. Carport Installation (2 Stellplaetze)">
+                           placeholder="z.B. Carport Installation (2 Stellplätze)">
                 </div>
                 <div class="col-md-2">
                     <label class="form-label">Sortierung</label>
@@ -42,7 +42,7 @@
                 <div class="col-md-12">
                     <label class="form-label">Beschreibung</label>
                     <textarea name="description" class="form-control" rows="3"
-                              placeholder="Detailbeschreibung fuer das PDF...">{{ product.description or '' }}</textarea>
+                              placeholder="Detailbeschreibung für das PDF...">{{ product.description or '' }}</textarea>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Standard-Menge</label>
@@ -56,13 +56,13 @@
                            step="0.01" placeholder="z.B. 1450.00">
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Preis 2 Stellplaetze (&euro;)</label>
+                    <label class="form-label">Preis 2 Stellplätze (&euro;)</label>
                     <input type="number" name="price_2_slot" class="form-control"
                            value="{{ product.price_2_slot if product.price_2_slot is not none else '' }}"
                            step="0.01" placeholder="z.B. 1650.00">
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">3+ Stellplaetze</label>
+                    <label class="form-label">3+ Stellplätze</label>
                     <input type="text" name="price_3_plus" class="form-control"
                            value="{{ product.price_3_plus or '' }}"
                            placeholder="z.B. Preis auf Anfrage">

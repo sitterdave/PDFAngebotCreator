@@ -95,17 +95,31 @@ def init_db():
     existing = conn.execute("SELECT id FROM company_settings WHERE id = 1").fetchone()
     if not existing:
         default_terms = (
-            "1) Dieses Angebot ist 30 Tage ab Ausstellungsdatum gueltig. "
+            "1) Dieses Angebot ist 30 Tage ab Ausstellungsdatum gültig. "
             "Nach Ablauf dieser Frist behalten wir uns eine Anpassung der Konditionen vor.\n"
-            "2) Wir behandeln Ihre Daten mit groesster Sorgfalt.\n"
+            "2) Wir behandeln Ihre Daten mit größter Sorgfalt.\n"
             "3) Die Zahlung erfolgt in zwei Raten:\n"
-            "    - 50 % Anzahlung bei Angebotsannahme. Eine Anzahlungsrechnung ueber 50% wird hierzu erstellt.\n"
+            "    - 50 % Anzahlung bei Angebotsannahme. Eine Anzahlungsrechnung über 50% wird hierzu erstellt.\n"
             "    - 50 % Restzahlung nach Fertigstellung und Lieferung aller Positionen.\n"
-            "4) Partnerfirma fuer Installationsarbeiten: Alle Installations- und elektrischen Anschlussarbeiten "
-            "werden in Zusammenarbeit mit unserer erfahrenen Partnerfirma durchgefuehrt.\n"
+            "4) Partnerfirma für Installationsarbeiten: Alle Installations- und elektrischen Anschlussarbeiten "
+            "werden in Zusammenarbeit mit unserer erfahrenen Partnerfirma durchgeführt.\n"
         )
         conn.execute(
-            "INSERT INTO company_settings (id, terms_text) VALUES (1, ?)",
+            """INSERT INTO company_settings (
+                id, company_name, company_street, company_zip, company_city,
+                company_country, company_email, company_website,
+                company_ust_id, firmenbuchnummer, gerichtsstandort,
+                bank_name, iban, bic,
+                default_valid_days, default_country, default_creator_name,
+                terms_text, brand_name, brand_slogan
+            ) VALUES (
+                1, 'Labsupport GmbH & Co KG', 'Hauptplatz 5', '3430', 'Tulln an der Donau',
+                'AT', 'office@stromsparen24.at', 'www.stromsparen24.at',
+                'ATU69952367', 'FN 440720v', 'Tulln',
+                'Raiffeisenbank', 'AT44 3254 7000 0101 4591', 'RLNWATWWTLN',
+                30, 'AT', 'David Sitter',
+                ?, 'Stromsparen24', 'UNSER SONNENSYSTEM, IHRE ENERGIEQUELLE.'
+            )""",
             (default_terms,)
         )
         conn.commit()
@@ -130,17 +144,17 @@ def _seed_product_templates(conn):
         # ===================== CARPORT-MODELLE =====================
         # Modell S - Selbstmontagefreundlich (hohe Schneelast 2,6 kN/m2)
         ('Carport', 'PV-Carport Modell S - Selbstmontagefreundlich',
-         'Fuer hohe Schneelasten bis 2,6 kN/m2. Selbstmontagefreundlich.',
+         'Für hohe Schneelasten bis 2,6 kN/m2. Selbstmontagefreundlich.',
          '1x', 2150.00, None, '', 1, 1),
 
         # Modell S - inkl. PV-Module
         ('Carport', 'PV-Carport Modell S - inkl. 9 PV-Module',
-         'Inkl. 9 PV-Module. Fuer Schneelast bis 2,6 kN/m2.',
+         'Inkl. 9 PV-Module. Für Schneelast bis 2,6 kN/m2.',
          '1x', 2975.00, None, '', 1, 2),
 
-        # Modell S2 - 2 Stellplaetze
+        # Modell S2 - 2 Stellplätze
         ('Carport', 'PV-Carport Modell S2 - Selbstmontagefreundlich',
-         'Fuer Schneelasten bis 1,6 kN/m2. Selbstmontagefreundlich.',
+         'Für Schneelasten bis 1,6 kN/m2. Selbstmontagefreundlich.',
          '1x', None, 2541.67, '', 1, 3),
 
         # Modell 01 - Modernes Carport
@@ -181,44 +195,44 @@ def _seed_product_templates(conn):
         # ===================== INSTALLATION =====================
         # Carport Installation (is_carport=1, da 19% MwSt in DE)
         ('Installation', 'Carport Installation',
-         'Fachgerechte Montage der Carport Struktur inkl. stabiler Befestigung und abschliessender Endabnahme.',
+         'Fachgerechte Montage der Carport Struktur inkl. stabiler Befestigung und abschließender Endabnahme.',
          '', 1450.00, 1650.00, 'Preis auf Anfrage', 1, 20),
 
         # PV-Anlage Installation (kein Carport -> 0% in DE)
         ('Installation', 'Installation der PV-Anlage',
-         'Professionelle Installation und Verschaltung der PV-Module nach hoechsten Standards.',
+         'Professionelle Installation und Verschaltung der PV-Module nach höchsten Standards.',
          '', None, None, 'Preis auf Anfrage', 0, 21),
 
-        # Elektrische Anschluesse und Inbetriebnahme
-        ('Installation', 'Elektrische Anschluesse und Inbetriebnahme',
+        # Elektrische Anschlüsse und Inbetriebnahme
+        ('Installation', 'Elektrische Anschlüsse und Inbetriebnahme',
          'Installation und Anschluss des Wechselrichters, des Batteriespeichers, '
          'der DC-AC-Leitung sowie des Potentialausgleichs und des PV-Abgangsverteilers. '
          'Dies beinhaltet auch die Inbetriebnahme der Anlage und die offizielle Meldung '
-         'beim zustaendigen Energieversorger.',
+         'beim zuständigen Energieversorger.',
          '', None, None, 'Preis auf Anfrage', 0, 22),
 
         # Montage und Anschlussarbeiten
         ('Installation', 'Montage und Anschlussarbeiten',
-         'Professionelle Installation und Verschaltung der PV-Module nach hoechsten Standards, '
-         'sodass sie optimal fuer den weiteren elektrischen Anschluss vorbereitet sind.',
+         'Professionelle Installation und Verschaltung der PV-Module nach höchsten Standards, '
+         'sodass sie optimal für den weiteren elektrischen Anschluss vorbereitet sind.',
          '', None, None, 'Preis auf Anfrage', 0, 23),
 
         # ===================== KOMPONENTEN =====================
         ('Komponenten', 'PV-Module',
-         'Solarmodule fuer Carport-Dach.',
+         'Solarmodule für Carport-Dach.',
          '', 990.00, 1450.00, 'Preis auf Anfrage', 0, 30),
 
         ('Komponenten', 'Wechselrichter',
-         'Wechselrichter fuer die Umwandlung von Gleich- in Wechselstrom.',
+         'Wechselrichter für die Umwandlung von Gleich- in Wechselstrom.',
          '1x', 1350.00, 1550.00, 'Preis auf Anfrage', 0, 31),
 
         ('Komponenten', 'Batteriespeicher',
-         'Batteriespeicher (Kapazitaet waehlbar 0-100 kWh).',
+         'Batteriespeicher (Kapazität wählbar 0-100 kWh).',
          '1x', None, None, 'Preis auf Anfrage', 0, 32),
 
         ('Komponenten', 'Elektromaterialien inkl. PV Abgangsverteiler',
-         'Enthaelt: MC4-Stecker, Solarkabel, Rohr, Befestigungsmaterial sowie Komponenten '
-         'fuer den PV-Abgangsverteiler (Fehlerstromschutzschalter, Leitungsschutzschalter, '
+         'Enthält: MC4-Stecker, Solarkabel, Rohr, Befestigungsmaterial sowie Komponenten '
+         'für den PV-Abgangsverteiler (Fehlerstromschutzschalter, Leitungsschutzschalter, '
          'Verdrahtungsmaterial).',
          '', None, None, 'Preis auf Anfrage', 0, 33),
 

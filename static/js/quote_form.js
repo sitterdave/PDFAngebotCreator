@@ -217,7 +217,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     btn.addEventListener('click', function() {
                         const pid = parseInt(this.dataset.productId);
                         const product = templates.find(t => t.id === pid);
-                        if (product) addProductToQuote(product);
+                        if (product) addProductToQuote(product, this);
                     });
                 });
 
@@ -269,7 +269,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return 0;
     }
 
-    function addProductToQuote(product) {
+    function addProductToQuote(product, btnElement) {
         const price = getTemplatePriceValue(product);
         addItemRow({
             title: product.title,
@@ -279,9 +279,23 @@ document.addEventListener('DOMContentLoaded', function() {
             is_carport: product.is_carport ? true : false,
         });
 
-        // Close modal
-        const modal = bootstrap.Modal.getInstance(document.getElementById('productModal'));
-        if (modal) modal.hide();
+        // Visual feedback: flash the button green instead of closing modal
+        if (btnElement) {
+            const origBg = btnElement.style.backgroundColor;
+            const origColor = btnElement.style.color;
+            btnElement.style.backgroundColor = '#00977080';
+            btnElement.style.color = '#fff';
+            const badge = document.createElement('span');
+            badge.className = 'badge bg-success ms-2 added-badge';
+            badge.textContent = 'Hinzugefügt!';
+            btnElement.querySelector('.d-flex').appendChild(badge);
+            setTimeout(() => {
+                btnElement.style.backgroundColor = origBg;
+                btnElement.style.color = origColor;
+                const b = btnElement.querySelector('.added-badge');
+                if (b) b.remove();
+            }, 1500);
+        }
     }
 
     // --- Utility ---

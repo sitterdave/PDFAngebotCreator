@@ -10,8 +10,8 @@
 </div>
 
 <p class="text-muted">
-    Hier verwalten Sie Ihre Standard-Produkte und Preise. Beim Erstellen eines Angebots koennen Sie
-    diese Vorlagen per Klick einfuegen.
+    Hier verwalten Sie Ihre Standard-Produkte und Preise. Beim Erstellen eines Angebots können Sie
+    diese Vorlagen per Klick einfügen.
 </p>
 
 {% if categories %}
@@ -55,7 +55,7 @@
                                         <i class="bi bi-pencil"></i>
                                     </a>
                                     <form method="post" action="{{ url_for('delete_product_route', product_id=p.id) }}"
-                                          class="d-inline" onsubmit="return confirm('Vorlage loeschen?')">
+                                          class="d-inline" onsubmit="return confirm('Vorlage löschen?')">
                                         <button type="submit" class="btn btn-outline-danger btn-sm">
                                             <i class="bi bi-trash"></i>
                                         </button>

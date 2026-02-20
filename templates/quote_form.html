@@ -29,7 +29,7 @@
                     <input type="date" name="date" class="form-control" value="{{ quote.date }}">
                 </div>
                 <div class="col-md-2">
-                    <label class="form-label">Gueltig bis</label>
+                    <label class="form-label">Gültig bis</label>
                     <input type="date" name="valid_until" class="form-control" value="{{ quote.valid_until }}">
                 </div>
                 <div class="col-md-2">
@@ -48,10 +48,10 @@
         </div>
     </div>
 
-    <!-- Kundendaten (Empfaenger) -->
+    <!-- Kundendaten (Empfänger) -->
     <div class="card mb-4">
         <div class="card-header bg-teal text-white">
-            <i class="bi bi-person"></i> Empfaenger
+            <i class="bi bi-person"></i> Empfänger
         </div>
         <div class="card-body">
             <div class="row g-3">
@@ -66,7 +66,7 @@
                            value="{{ quote.customer_company }}">
                 </div>
                 <div class="col-md-5">
-                    <label class="form-label">Strasse</label>
+                    <label class="form-label">Straße</label>
                     <input type="text" name="customer_street" class="form-control"
                            value="{{ quote.customer_street }}">
                 </div>
@@ -83,7 +83,7 @@
                 <div class="col-md-2">
                     <label class="form-label">Land (Text)</label>
                     <input type="text" name="customer_country_label" class="form-control"
-                           value="{{ quote.customer_country_label }}" placeholder="Oesterreich">
+                           value="{{ quote.customer_country_label }}" placeholder="Österreich">
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Telefon</label>
@@ -123,7 +123,7 @@
                             <th style="width: 80px">Menge</th>
                             <th style="width: 120px">Gesamtkosten &euro;</th>
                             <th style="width: 60px" id="carportColHeader">
-                                <span title="Deutschland: Carport = 19% MwSt, Rest = 0%. Oesterreich: immer 20%.">
+                                <span title="Deutschland: Carport = 19% MwSt, Rest = 0%. Österreich: immer 20%.">
                                     Carport?
                                 </span>
                             </th>
@@ -192,10 +192,10 @@
         </div>
     </div>
 
-    <!-- AGB / Zusaetzliche Angebotsinformationen -->
+    <!-- AGB / Zusätzliche Angebotsinformationen -->
     <div class="card mb-4">
         <div class="card-header bg-teal text-white">
-            <i class="bi bi-file-text"></i> Zusaetzliche Angebotsinformationen (Seite 2 im PDF)
+            <i class="bi bi-file-text"></i> Zusätzliche Angebotsinformationen (Seite 2 im PDF)
         </div>
         <div class="card-body">
             <textarea name="custom_terms" class="form-control" rows="8"
@@ -231,16 +231,16 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header bg-teal text-white">
-                <h5 class="modal-title"><i class="bi bi-box-seam"></i> Produktvorlage einfuegen</h5>
+                <h5 class="modal-title"><i class="bi bi-box-seam"></i> Produktvorlage einfügen</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <div class="mb-3">
-                    <label class="form-label">Anzahl Stellplaetze (fuer Preisauswahl)</label>
+                    <label class="form-label">Anzahl Stellplätze (für Preisauswahl)</label>
                     <select class="form-select" id="slotCount">
                         <option value="1">1 Stellplatz</option>
-                        <option value="2" selected>2 Stellplaetze</option>
-                        <option value="3">3+ Stellplaetze</option>
+                        <option value="2" selected>2 Stellplätze</option>
+                        <option value="3">3+ Stellplätze</option>
                     </select>
                 </div>
                 <div id="productList">
@@ -248,7 +248,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schliessen</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schließen</button>
             </div>
         </div>
     </div>

@@ -7,7 +7,7 @@ echo.
 
 cd /d "%~dp0"
 
-:: Pruefen ob Python installiert ist
+:: Prüfen ob Python installiert ist
 python --version >nul 2>&1
 if errorlevel 1 (
     echo.
@@ -20,7 +20,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
-:: Python-Umgebung pruefen/erstellen
+:: Python-Umgebung prüfen/erstellen
 if not exist "venv" (
     echo [1/3] Erstelle Python-Umgebung...
     python -m venv venv
@@ -38,39 +38,39 @@ call venv\Scripts\activate.bat
 if errorlevel 1 (
     echo.
     echo FEHLER: Python-Umgebung konnte nicht aktiviert werden!
-    echo Versuche den venv Ordner zu loeschen und starte erneut.
+    echo Versuche den venv Ordner zu löschen und starte erneut.
     echo.
     pause
     exit /b 1
 )
 
-:: Abhaengigkeiten pruefen - Flask importierbar?
+:: Abhängigkeiten prüfen - Flask importierbar?
 python -c "import flask" >nul 2>&1
 if errorlevel 1 (
-    echo [2/3] Installiere Abhaengigkeiten...
+    echo [2/3] Installiere Abhängigkeiten...
     pip install -r requirements.txt
     if errorlevel 1 (
         echo.
-        echo FEHLER: Abhaengigkeiten konnten nicht installiert werden!
-        echo Bitte pruefe deine Internetverbindung.
+        echo FEHLER: Abhängigkeiten konnten nicht installiert werden!
+        echo Bitte prüfe deine Internetverbindung.
         echo.
         pause
         exit /b 1
     )
 ) else (
-    echo [2/3] Abhaengigkeiten bereits installiert.
+    echo [2/3] Abhängigkeiten bereits installiert.
 )
 
 echo [3/3] Starte Angebot Creator...
 echo.
 echo ========================================
-echo   App laeuft auf: http://localhost:5000
-echo   Browser oeffnet sich automatisch.
-echo   Zum Beenden: Strg+C oder Fenster schliessen
+echo   App läuft auf: http://localhost:5000
+echo   Browser öffnet sich automatisch.
+echo   Zum Beenden: Strg+C oder Fenster schließen
 echo ========================================
 echo.
 
-:: Browser nach 2 Sekunden oeffnen
+:: Browser nach 2 Sekunden öffnen
 start "" cmd /c "timeout /t 2 /nobreak >nul & start http://localhost:5000"
 
 :: App starten

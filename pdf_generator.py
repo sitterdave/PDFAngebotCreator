@@ -1,7 +1,7 @@
 """
 PDF Generator that matches the Stromsparen24 quote layout:
 - Logo/brand top area
-- Two-column: Empfaenger (left) / Ersteller (right)
+- Two-column: Empfänger (left) / Ersteller (right)
 - Angebotsdetails section
 - Items table with teal header (Pos | Beschreibung | Menge | Gesamtkosten)
 - Totals box (Summe netto, MwSt, Summe brutto)
@@ -36,7 +36,7 @@ def format_date_german(date_str):
     if not date_str:
         return ''
     months = {
-        '01': 'Jaenner', '02': 'Februar', '03': 'Maerz', '04': 'April',
+        '01': 'Jänner', '02': 'Februar', '03': 'März', '04': 'April',
         '05': 'Mai', '06': 'Juni', '07': 'Juli', '08': 'August',
         '09': 'September', '10': 'Oktober', '11': 'November', '12': 'Dezember'
     }
@@ -183,13 +183,13 @@ def generate_quote_pdf(quote, items):
     pdf.cell(0, 12, 'Angebot', ln=True)
     pdf.ln(4)
 
-    # --- Two-column: Empfaenger / Ersteller ---
+    # --- Two-column: Empfänger / Ersteller ---
     y_block = pdf.get_y()
 
-    # Left: Empfaenger
+    # Left: Empfänger
     pdf.set_font(f, 'B', 10)
     pdf.set_text_color(*BLACK)
-    pdf.cell(90, 5, 'Empfaenger', ln=True)
+    pdf.cell(90, 5, 'Empfänger', ln=True)
     pdf.set_font(f, '', 9)
     pdf.ln(1)
 
@@ -232,7 +232,7 @@ def generate_quote_pdf(quote, items):
     ccountry = company.get('company_country', '')
     if ccountry == 'AT':
         pdf.set_x(110)
-        pdf.cell(80, 5, 'Oesterreich', ln=True)
+        pdf.cell(80, 5, 'Österreich', ln=True)
     elif ccountry == 'DE':
         pdf.set_x(110)
         pdf.cell(80, 5, 'Deutschland', ln=True)
@@ -285,7 +285,7 @@ def generate_quote_pdf(quote, items):
 
         pdf.set_font(f, 'B', 11)
         pdf.set_text_color(*BLACK)
-        pdf.cell(0, 7, 'Zusaetzliche Angebotsinformationen:', ln=True)
+        pdf.cell(0, 7, 'Zusätzliche Angebotsinformationen:', ln=True)
         pdf.ln(4)
 
         pdf.set_font(f, '', 9)
@@ -296,7 +296,7 @@ def generate_quote_pdf(quote, items):
 
         # Signature area
         pdf.set_font(f, 'B', 9)
-        pdf.cell(0, 6, 'Zur Annahme des Angebots bitte unterschreiben und zuruecksenden.', ln=True)
+        pdf.cell(0, 6, 'Zur Annahme des Angebots bitte unterschreiben und zurücksenden.', ln=True)
         pdf.ln(12)
 
         pdf.set_font(f, '', 9)

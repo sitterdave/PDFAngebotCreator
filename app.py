@@ -68,7 +68,7 @@ def new_quote():
         'customer_street': '',
         'customer_zip': '',
         'customer_city': '',
-        'customer_country_label': 'Oesterreich' if default_country == 'AT' else 'Deutschland',
+        'customer_country_label': 'Österreich' if default_country == 'AT' else 'Deutschland',
         'customer_phone': '',
         'customer_email': '',
         'project_name': '',
@@ -139,7 +139,7 @@ def edit_quote(quote_id):
 @app.route('/quote/<int:quote_id>/delete', methods=['POST'])
 def delete_quote_route(quote_id):
     delete_quote(quote_id)
-    flash('Angebot geloescht.', 'success')
+    flash('Angebot gelöscht.', 'success')
     return redirect(url_for('index'))
 
 
@@ -310,7 +310,7 @@ def edit_product(product_id):
 @app.route('/products/<int:product_id>/delete', methods=['POST'])
 def delete_product_route(product_id):
     delete_product_template(product_id)
-    flash('Produktvorlage geloescht.', 'success')
+    flash('Produktvorlage gelöscht.', 'success')
     return redirect(url_for('product_list'))
 
 
