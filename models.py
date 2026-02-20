@@ -97,6 +97,7 @@ def init_db():
             quantity TEXT NOT NULL DEFAULT '1x',
             total_price REAL NOT NULL DEFAULT 0,
             is_carport INTEGER NOT NULL DEFAULT 0,
+            is_optional INTEGER NOT NULL DEFAULT 0,
             FOREIGN KEY (quote_id) REFERENCES quotes(id) ON DELETE CASCADE
         );
     ''')
@@ -142,6 +143,7 @@ def init_db():
 
     # Migrate existing DB: add new columns, fix old text, update company defaults
     _migrate_quotes_columns(conn)
+    _migrate_quote_items_columns(conn)
     _migrate_product_template_columns(conn)
     _migrate_existing_data(conn)
     _migrate_product_template_data(conn)
@@ -159,6 +161,14 @@ def _migrate_quotes_columns(conn):
     existing = [col[1] for col in conn.execute("PRAGMA table_info(quotes)").fetchall()]
     if 'customer_uid' not in existing:
         conn.execute("ALTER TABLE quotes ADD COLUMN customer_uid TEXT DEFAULT ''")
+        conn.commit()
+
+
+def _migrate_quote_items_columns(conn):
+    """Add new columns to quote_items if they don't exist yet."""
+    existing = [col[1] for col in conn.execute("PRAGMA table_info(quote_items)").fetchall()]
+    if 'is_optional' not in existing:
+        conn.execute("ALTER TABLE quote_items ADD COLUMN is_optional INTEGER NOT NULL DEFAULT 0")
         conn.commit()
 
 
@@ -536,14 +546,15 @@ def create_quote(data, items):
 
     for i, item in enumerate(items):
         conn.execute('''
-            INSERT INTO quote_items (quote_id, position, title, description, quantity, total_price, is_carport)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO quote_items (quote_id, position, title, description, quantity, total_price, is_carport, is_optional)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             quote_id, i + 1, item.get('title', ''),
             item.get('description', ''),
             item.get('quantity', '1x'),
             float(item.get('total_price', 0) or 0),
-            int(item.get('is_carport', 0))
+            int(item.get('is_carport', 0)),
+            int(item.get('is_optional', 0))
         ))
 
     conn.commit()
@@ -597,14 +608,15 @@ def update_quote(quote_id, data, items):
     conn.execute("DELETE FROM quote_items WHERE quote_id = ?", (quote_id,))
     for i, item in enumerate(items):
         conn.execute('''
-            INSERT INTO quote_items (quote_id, position, title, description, quantity, total_price, is_carport)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO quote_items (quote_id, position, title, description, quantity, total_price, is_carport, is_optional)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             quote_id, i + 1, item.get('title', ''),
             item.get('description', ''),
             item.get('quantity', '1x'),
             float(item.get('total_price', 0) or 0),
-            int(item.get('is_carport', 0))
+            int(item.get('is_carport', 0)),
+            int(item.get('is_optional', 0))
         ))
 
     conn.commit()
@@ -642,7 +654,7 @@ def calculate_quote_totals(items, country):
 
     for item in items:
         price = float(item.get('total_price', 0) or 0)
-        netto += price
+        is_optional = int(item.get('is_optional', 0) or 0)
 
         if country == 'AT':
             vat_rate = 20.0
@@ -653,10 +665,14 @@ def calculate_quote_totals(items, country):
 
         vat_amount = price * (vat_rate / 100)
 
+        # Optionale Positionen nicht in Summe zählen
+        if not is_optional:
+            netto += price
+
         item_details.append({
             **item,
             'vat_rate': vat_rate,
-            'vat_amount': vat_amount,
+            'vat_amount': vat_amount if not is_optional else 0,
         })
 
     vat_total = sum(i['vat_amount'] for i in item_details)

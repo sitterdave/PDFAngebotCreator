@@ -421,8 +421,12 @@ def _draw_items_table(pdf, totals, country):
     # Draw header
     _draw_table_header(pdf, x_start, col_pos, col_desc, col_menge, col_total)
 
+    # Only non-optional items in main table
+    regular_items = [i for i in totals['positions'] if not int(i.get('is_optional', 0) or 0)]
+    optional_items = [i for i in totals['positions'] if int(i.get('is_optional', 0) or 0)]
+
     row_idx = 0
-    for item in totals['positions']:
+    for item in regular_items:
         title = item.get('title', '')
         desc = item.get('description', '')
         quantity = item.get('quantity', '1x')
@@ -504,6 +508,96 @@ def _draw_items_table(pdf, totals, country):
 
         pdf.set_y(row_y + row_h)
         row_idx += 1
+
+    # --- Optional items section ---
+    if optional_items:
+        pdf.ln(6)
+
+        # Check page break for optional header
+        if pdf.get_y() + 20 > pdf.h - 35:
+            pdf.add_page()
+
+        _draw_section_header(pdf, 'Optionale Positionen (nicht in Summe enthalten)')
+        _draw_table_header(pdf, x_start, col_pos, col_desc, col_menge, col_total)
+
+        row_idx = 0
+        for item in optional_items:
+            title = item.get('title', '')
+            desc = item.get('description', '')
+            quantity = item.get('quantity', '1x')
+            price = float(item.get('total_price', 0) or 0)
+
+            pdf.set_font(f, 'B', 9)
+            title_lines = pdf.multi_cell(col_desc - 4, 5, title, align='L', dry_run=True, output='LINES') if title else []
+            pdf.set_font(f, '', 8)
+            desc_lines = pdf.multi_cell(col_desc - 4, 4.5, desc, align='L', dry_run=True, output='LINES') if desc else []
+
+            title_h = len(title_lines) * 5 if title_lines else 0
+            desc_h = len(desc_lines) * 4.5 if desc_lines else 0
+            content_h = title_h + desc_h + 4
+            row_h = max(content_h, 16)
+
+            if pdf.get_y() + row_h > pdf.h - 35:
+                pdf.add_page()
+                _draw_table_header(pdf, x_start, col_pos, col_desc, col_menge, col_total)
+
+            row_y = pdf.get_y()
+
+            # Light yellow background for optional rows
+            pdf.set_fill_color(255, 249, 230)
+            pdf.rect(x_start, row_y, col_pos + col_desc + col_menge + col_total, row_h, 'F')
+
+            # Draw cell borders
+            pdf.set_draw_color(210, 210, 210)
+            pdf.set_line_width(0.2)
+            line_end = x_start + col_pos + col_desc + col_menge + col_total
+            pdf.line(x_start, row_y, line_end, row_y)
+            pdf.line(x_start, row_y + row_h, line_end, row_y + row_h)
+            pdf.line(x_start, row_y, x_start, row_y + row_h)
+            x_sep = x_start + col_pos
+            pdf.line(x_sep, row_y, x_sep, row_y + row_h)
+            x_sep += col_desc
+            pdf.line(x_sep, row_y, x_sep, row_y + row_h)
+            x_sep += col_menge
+            pdf.line(x_sep, row_y, x_sep, row_y + row_h)
+            pdf.line(line_end, row_y, line_end, row_y + row_h)
+
+            # Pos number
+            pdf.set_font(f, 'B', 9)
+            pdf.set_text_color(*BLUE)
+            pos_y = row_y + (row_h / 2) - 2.5
+            pdf.set_xy(x_start, pos_y)
+            pdf.cell(col_pos, 5, str(item['position']), align='C')
+
+            # Description
+            desc_x = x_start + col_pos + 2
+            desc_y = row_y + 2
+            pdf.set_xy(desc_x, desc_y)
+
+            if title:
+                pdf.set_font(f, 'B', 9)
+                pdf.set_text_color(*BLACK)
+                pdf.multi_cell(col_desc - 4, 5, title, align='L')
+            if desc:
+                pdf.set_font(f, '', 7.5)
+                pdf.set_text_color(*GRAY)
+                pdf.set_x(desc_x)
+                pdf.multi_cell(col_desc - 4, 4, desc, align='L')
+
+            # Menge
+            pdf.set_font(f, '', 9)
+            pdf.set_text_color(*BLACK)
+            pdf.set_xy(x_start + col_pos + col_desc, pos_y)
+            pdf.cell(col_menge, 5, str(quantity), align='C')
+
+            # Gesamtkosten
+            pdf.set_font(f, 'B', 9)
+            pdf.set_text_color(*BLACK)
+            pdf.set_xy(x_start + col_pos + col_desc + col_menge, pos_y)
+            pdf.cell(col_total - 3, 5, fmt(price) + ' \u20ac', align='R')
+
+            pdf.set_y(row_y + row_h)
+            row_idx += 1
 
 
 def _draw_totals_box(pdf, totals, country):

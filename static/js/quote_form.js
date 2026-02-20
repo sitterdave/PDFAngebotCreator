@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const qty = data ? (data.quantity || '1x') : '1x';
         const price = data ? (data.price || 0) : 0;
         const isCarport = data ? data.is_carport : false;
+        const isOptional = data ? data.is_optional : false;
 
         row.innerHTML = `
             <td class="align-middle text-center pos-number">${document.querySelectorAll('.item-row').length + 1}</td>
@@ -49,6 +50,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 <input type="checkbox" name="item_is_carport_${idx}"
                        class="form-check-input item-carport" value="1"
                        ${isCarport ? 'checked' : ''}>
+            </td>
+            <td class="text-center">
+                <input type="checkbox" name="item_is_optional_${idx}"
+                       class="form-check-input item-optional" value="1"
+                       ${isOptional ? 'checked' : ''}>
             </td>
             <td>
                 <button type="button" class="btn btn-sm btn-outline-danger remove-item-btn">
@@ -128,8 +134,13 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll('.item-row').forEach(function(row) {
             const priceInput = row.querySelector('.item-price');
             const carportCheckbox = row.querySelector('.item-carport');
+            const optionalCheckbox = row.querySelector('.item-optional');
             const price = parseFloat(priceInput ? priceInput.value : 0) || 0;
             const isCarport = carportCheckbox ? carportCheckbox.checked : false;
+            const isOptional = optionalCheckbox ? optionalCheckbox.checked : false;
+
+            // Optionale Positionen nicht in Summe zählen
+            if (isOptional) return;
 
             netto += price;
 
@@ -155,12 +166,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Bind price change events (using event delegation)
     document.addEventListener('input', function(e) {
-        if (e.target.classList.contains('item-price') || e.target.classList.contains('item-carport')) {
+        if (e.target.classList.contains('item-price') || e.target.classList.contains('item-carport') || e.target.classList.contains('item-optional')) {
             recalculate();
         }
     });
     document.addEventListener('change', function(e) {
-        if (e.target.classList.contains('item-carport')) {
+        if (e.target.classList.contains('item-carport') || e.target.classList.contains('item-optional')) {
             recalculate();
         }
     });
@@ -175,7 +186,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!hint) {
                 hint = document.createElement('tr');
                 hint.id = 'emptyItemsHint';
-                hint.innerHTML = '<td colspan="7" class="text-center text-muted py-3">'
+                hint.innerHTML = '<td colspan="8" class="text-center text-muted py-3">'
                     + '<i class="bi bi-info-circle me-1"></i>'
                     + 'Positionen über "Aus Vorlage" oder "Leere Position" hinzufügen'
                     + '</td>';
@@ -400,12 +411,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 const qtyEl = row.querySelector('[name="item_quantity_' + idx + '"]');
                 const priceEl = row.querySelector('[name="item_price_' + idx + '"]');
                 const carportEl = row.querySelector('[name="item_is_carport_' + idx + '"]');
+                const optionalEl = row.querySelector('[name="item_is_optional_' + idx + '"]');
                 items.push({
                     title: titleEl ? titleEl.value : '',
                     description: descEl ? descEl.value : '',
                     quantity: qtyEl ? qtyEl.value || '1x' : '1x',
                     total_price: priceEl ? parseFloat(priceEl.value) || 0 : 0,
                     is_carport: carportEl ? (carportEl.checked ? 1 : 0) : 0,
+                    is_optional: optionalEl ? (optionalEl.checked ? 1 : 0) : 0,
                 });
             });
             // Write JSON into hidden field

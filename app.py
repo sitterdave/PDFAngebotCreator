@@ -363,6 +363,7 @@ def parse_items_from_form(form):
                         'quantity': str(item.get('quantity', '1x')) or '1x',
                         'total_price': float(item.get('total_price', 0) or 0),
                         'is_carport': int(item.get('is_carport', 0) or 0),
+                        'is_optional': int(item.get('is_optional', 0) or 0),
                     })
             if items:
                 return items
@@ -388,6 +389,7 @@ def parse_items_from_form(form):
                 'quantity': form.get(f'item_quantity_{i}', '1x') or '1x',
                 'total_price': float(form.get(f'item_price_{i}', 0) or 0),
                 'is_carport': 1 if form.get(f'item_is_carport_{i}') else 0,
+                'is_optional': 1 if form.get(f'item_is_optional_{i}') else 0,
             })
     return items
 

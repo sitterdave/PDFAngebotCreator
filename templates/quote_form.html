@@ -132,6 +132,11 @@
                                     Carport?
                                 </span>
                             </th>
+                            <th style="width: 65px">
+                                <span title="Optionale Position: wird im Angebot angezeigt aber nicht in die Summe gerechnet">
+                                    Optional?
+                                </span>
+                            </th>
                             <th style="width: 40px"></th>
                         </tr>
                     </thead>
@@ -163,6 +168,11 @@
                                 <input type="checkbox" name="item_is_carport_{{ loop.index0 }}"
                                        class="form-check-input item-carport" value="1"
                                        {{ 'checked' if item.is_carport }}>
+                            </td>
+                            <td class="text-center">
+                                <input type="checkbox" name="item_is_optional_{{ loop.index0 }}"
+                                       class="form-check-input item-optional" value="1"
+                                       {{ 'checked' if item.is_optional }}>
                             </td>
                             <td>
                                 <button type="button" class="btn btn-sm btn-outline-danger remove-item-btn">

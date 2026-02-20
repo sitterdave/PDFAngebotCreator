@@ -81,6 +81,7 @@
                         </thead>
                         <tbody>
                             {% for item in totals.positions %}
+                            {% if not item.is_optional %}
                             <tr>
                                 <td class="text-center">{{ item.position }}</td>
                                 <td>
@@ -93,8 +94,29 @@
                                 <td class="text-center">{{ item.quantity }}</td>
                                 <td class="text-end">{{ "%.2f"|format(item.total_price|float) }}</td>
                             </tr>
+                            {% endif %}
                             {% endfor %}
                         </tbody>
+                        {% set optional_items = totals.positions|selectattr('is_optional')|list %}
+                        {% if optional_items %}
+                        <tbody>
+                            <tr class="table-warning">
+                                <td colspan="4" class="fw-bold"><i class="bi bi-info-circle"></i> Optionale Positionen (nicht in Summe enthalten)</td>
+                            </tr>
+                            {% for item in optional_items %}
+                            <tr class="table-warning" style="opacity: 0.85;">
+                                <td class="text-center">{{ item.position }}</td>
+                                <td>
+                                    {% if item.title %}<strong>{{ item.title }}</strong><br>{% endif %}
+                                    <span class="text-muted">{{ item.description }}</span>
+                                    <span class="badge bg-warning text-dark ms-1">Optional</span>
+                                </td>
+                                <td class="text-center">{{ item.quantity }}</td>
+                                <td class="text-end">{{ "%.2f"|format(item.total_price|float) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        {% endif %}
                     </table>
                 </div>
             </div>
