@@ -103,8 +103,7 @@ def init_db():
             "3) Die Zahlung erfolgt in zwei Raten:\n"
             "    \u2022 50 % Anzahlung bei Angebotsannahme. Eine Anzahlungsrechnung über 50% wird hierzu erstellt.\n"
             "    \u2022 50 % Restzahlung nach Fertigstellung und Lieferung aller Positionen.\n\n"
-            "4)\n\n"
-            "5) Bitte beachten Sie, dass Stromsparen24.at ein Service der Labsupport GmbH & Co KG ist. "
+            "4) Bitte beachten Sie, dass Stromsparen24.at ein Service der Labsupport GmbH & Co KG ist. "
             "Deshalb erfolgt die Rechnungsstellung für alle Käufe auf Stromsparen24.at "
             "durch Labsupport GmbH & Co KG.\n\n"
             "Partnerfirma für Installationsarbeiten: Alle Installations- und elektrischen Anschlussarbeiten "
@@ -151,8 +150,13 @@ def _migrate_existing_data(conn):
     terms = row['terms_text'] or ''
     company_name = row['company_name'] or ''
 
-    # Check if terms still contain old ae/oe/ue patterns
-    if 'gueltig' in terms or 'groesster' in terms or 'ueber' in terms or 'fuer' in terms or 'durchgefuehrt' in terms:
+    # Check if terms need updating: old ae/oe/ue patterns OR old empty "4)\n\n5)" numbering
+    needs_update = (
+        'gueltig' in terms or 'groesster' in terms or 'ueber' in terms
+        or 'fuer' in terms or 'durchgefuehrt' in terms
+        or '4)\n\n5)' in terms
+    )
+    if needs_update:
         new_terms = (
             "1) Dieses Angebot ist 30 Tage ab Ausstellungsdatum gültig. "
             "Nach Ablauf dieser Frist behalten wir uns eine Anpassung der Konditionen vor.\n\n"
@@ -162,8 +166,7 @@ def _migrate_existing_data(conn):
             "3) Die Zahlung erfolgt in zwei Raten:\n"
             "    \u2022 50 % Anzahlung bei Angebotsannahme. Eine Anzahlungsrechnung über 50% wird hierzu erstellt.\n"
             "    \u2022 50 % Restzahlung nach Fertigstellung und Lieferung aller Positionen.\n\n"
-            "4)\n\n"
-            "5) Bitte beachten Sie, dass Stromsparen24.at ein Service der Labsupport GmbH & Co KG ist. "
+            "4) Bitte beachten Sie, dass Stromsparen24.at ein Service der Labsupport GmbH & Co KG ist. "
             "Deshalb erfolgt die Rechnungsstellung für alle Käufe auf Stromsparen24.at "
             "durch Labsupport GmbH & Co KG.\n\n"
             "Partnerfirma für Installationsarbeiten: Alle Installations- und elektrischen Anschlussarbeiten "
