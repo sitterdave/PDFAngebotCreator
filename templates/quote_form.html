@@ -198,9 +198,9 @@
             <i class="bi bi-file-text"></i> Zusätzliche Angebotsinformationen (Seite 2 im PDF)
         </div>
         <div class="card-body">
-            <textarea name="custom_terms" class="form-control" rows="8"
+            <textarea name="custom_terms" class="form-control" rows="14"
                       placeholder="Zahlungsbedingungen, Konditionen, Hinweise...">{{ quote.custom_terms }}</textarea>
-            <small class="text-muted">Dieser Text erscheint auf Seite 2 des PDFs mit Unterschriftenfeld.</small>
+            <small class="text-muted">Dieser Text erscheint auf Seite 2 des PDFs mit Unterschriftenfeld. Der Standardtext kommt aus den Einstellungen.</small>
         </div>
     </div>
 
@@ -224,7 +224,6 @@
         </a>
     </div>
 </form>
-{% endblock %}
 
 <!-- Product Template Modal -->
 <div class="modal fade" id="productModal" tabindex="-1">
@@ -253,6 +252,7 @@
         </div>
     </div>
 </div>
+{% endblock %}
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/quote_form.js') }}"></script>
