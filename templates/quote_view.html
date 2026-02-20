@@ -19,6 +19,11 @@
                 <i class="bi bi-copy"></i> Duplizieren
             </button>
         </form>
+        {% if quote.customer_email %}
+        <a href="#" id="mailto-btn" class="btn btn-outline-success">
+            <i class="bi bi-envelope"></i> Per Mail senden
+        </a>
+        {% endif %}
     </div>
 </div>
 
@@ -229,4 +234,51 @@
         </div>
     </div>
 </div>
+
+{% if quote.customer_email %}
+<script>
+document.getElementById('mailto-btn').addEventListener('click', function(e) {
+    e.preventDefault();
+
+    var email = {{ quote.customer_email|tojson }};
+    var customerName = {{ quote.customer_name|tojson }};
+    var quoteNumber = {{ quote.quote_number|tojson }};
+
+    // Carport-Modell aus Items ermitteln
+    var carportModel = '';
+    {% for item in totals.positions %}
+    {% if item.is_carport %}
+    carportModel = {{ item.title|tojson }};
+    {% endif %}
+    {% endfor %}
+
+    var betreff = 'Ihr Angebot Nr. ' + quoteNumber + ' | Stromsparen24';
+
+    var text = 'Sehr geehrte/r ' + customerName + ',\n\n'
+        + 'im Anhang finden Sie Ihr persönliches Angebot'
+        + (carportModel ? ' für das ' + carportModel + '.' : '.')
+        + '\n\n'
+        + 'Besonders hervorheben möchte ich, dass wir Ihnen das Carport inklusive K2-Material auf Wunsch ohne Aufpreis in einer RAL-Farbe Ihrer Wahl elektrostatisch pulverbeschichten können. Die feinmatte Oberfläche verleiht dem Carport nicht nur eine besonders edle Optik, sondern sorgt auch für eine lange Lebensdauer und höchste Widerstandsfähigkeit.\n\n'
+        + 'Zur Auswahl stehen Ihnen folgende RAL-Farben:\n'
+        + '■ RAL 9005 – Tiefschwarz\n'
+        + '■ RAL 7016 – Anthrazitgrau\n'
+        + '■ RAL 8017 – Schokoladenbraun\n'
+        + '■ RAL 7021 – Schwarzgrau\n'
+        + '■ RAL 8019 – Graubraun\n'
+        + '■ RAL 6005 – Moosgrün\n\n'
+        + 'Falls Sie eine andere RAL-Farbe bevorzugen, lassen Sie es mich gerne wissen – wir finden gemeinsam eine Lösung.\n\n'
+        + 'Bei Fragen einfach melden.\n\n'
+        + 'Mit freundlichen Grüßen\n'
+        + 'David Sitter\n\n'
+        + 'Stromsparen24.at\n'
+        + 'Labsupport GmbH & CO KG\n'
+        + 'UID ATU69952367, FN: 440720v\n'
+        + 'office@stromsparen24.at / 06603118004';
+
+    window.location.href = 'mailto:' + encodeURIComponent(email)
+        + '?subject=' + encodeURIComponent(betreff)
+        + '&body=' + encodeURIComponent(text);
+});
+</script>
+{% endif %}
 {% endblock %}
