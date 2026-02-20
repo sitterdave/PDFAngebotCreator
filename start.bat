@@ -44,10 +44,11 @@ if errorlevel 1 (
     exit /b 1
 )
 
-:: Abhaengigkeiten installieren
-if not exist "venv\.installed" (
+:: Abhaengigkeiten pruefen - Flask importierbar?
+python -c "import flask" >nul 2>&1
+if errorlevel 1 (
     echo [2/3] Installiere Abhaengigkeiten...
-    pip install -r requirements.txt --quiet
+    pip install -r requirements.txt
     if errorlevel 1 (
         echo.
         echo FEHLER: Abhaengigkeiten konnten nicht installiert werden!
@@ -56,7 +57,8 @@ if not exist "venv\.installed" (
         pause
         exit /b 1
     )
-    echo done > venv\.installed
+) else (
+    echo [2/3] Abhaengigkeiten bereits installiert.
 )
 
 echo [3/3] Starte Angebot Creator...
