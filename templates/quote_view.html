@@ -42,6 +42,7 @@
                             {{ quote.customer_zip }} {{ quote.customer_city }}<br>
                         {% endif %}
                         {% if quote.customer_country_label %}{{ quote.customer_country_label }}<br>{% endif %}
+                        {% if quote.customer_uid %}UID: {{ quote.customer_uid }}<br>{% endif %}
                     </div>
                 </div>
             </div>
@@ -56,7 +57,7 @@
                         {% if settings.company_street %}
                             {{ settings.company_zip }} {{ settings.company_city }} {{ settings.company_street }}<br>
                         {% endif %}
-                        {% if settings.company_ust_id %}UID: {{ settings.company_ust_id }}{% endif %}
+                        {% if settings.company_ust_id %}UID: {{ settings.company_ust_id }}<br>{% endif %}
                     </div>
                 </div>
             </div>

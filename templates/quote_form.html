@@ -85,15 +85,20 @@
                     <input type="text" name="customer_country_label" class="form-control"
                            value="{{ quote.customer_country_label }}" placeholder="Österreich">
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label">Telefon</label>
                     <input type="text" name="customer_phone" class="form-control"
                            value="{{ quote.customer_phone }}">
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label">E-Mail</label>
                     <input type="email" name="customer_email" class="form-control"
                            value="{{ quote.customer_email }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">UID (USt-IdNr.)</label>
+                    <input type="text" name="customer_uid" class="form-control"
+                           value="{{ quote.customer_uid }}" placeholder="z.B. ATU12345678">
                 </div>
             </div>
         </div>

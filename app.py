@@ -97,6 +97,7 @@ def save_quote():
         'customer_country_label': request.form.get('customer_country_label', ''),
         'customer_phone': request.form.get('customer_phone', ''),
         'customer_email': request.form.get('customer_email', ''),
+        'customer_uid': request.form.get('customer_uid', ''),
         'project_name': request.form.get('project_name', ''),
         'project_description': request.form.get('project_description', ''),
         'creator_name': request.form.get('creator_name', ''),

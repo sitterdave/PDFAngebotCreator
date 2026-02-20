@@ -237,6 +237,9 @@ def generate_quote_pdf(quote, items):
     country_label = quote.get('customer_country_label', '')
     if country_label:
         pdf.cell(90, 5, country_label, ln=True)
+    customer_uid = quote.get('customer_uid', '')
+    if customer_uid:
+        pdf.cell(90, 5, f"UID: {customer_uid}", ln=True)
 
     empf_end_y = pdf.get_y()
 
@@ -282,8 +285,6 @@ def generate_quote_pdf(quote, items):
     ust = company.get('company_ust_id', '')
     if ust:
         pdf.set_x(115)
-        pdf.set_font(f, '', 8)
-        pdf.set_text_color(*GRAY)
         pdf.cell(75, 5, f"UID: {ust}", ln=True)
 
     # Move Y to max of both columns

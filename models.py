@@ -56,6 +56,7 @@ def init_db():
             customer_country_label TEXT DEFAULT '',
             customer_phone TEXT DEFAULT '',
             customer_email TEXT DEFAULT '',
+            customer_uid TEXT DEFAULT '',
             project_name TEXT DEFAULT '',
             project_description TEXT DEFAULT '',
             creator_name TEXT DEFAULT '',
@@ -140,6 +141,7 @@ def init_db():
         conn.commit()
 
     # Migrate existing DB: add new columns, fix old text, update company defaults
+    _migrate_quotes_columns(conn)
     _migrate_product_template_columns(conn)
     _migrate_existing_data(conn)
     _migrate_product_template_data(conn)
@@ -150,6 +152,14 @@ def init_db():
         _seed_product_templates(conn)
 
     conn.close()
+
+
+def _migrate_quotes_columns(conn):
+    """Add new columns to quotes if they don't exist yet."""
+    existing = [col[1] for col in conn.execute("PRAGMA table_info(quotes)").fetchall()]
+    if 'customer_uid' not in existing:
+        conn.execute("ALTER TABLE quotes ADD COLUMN customer_uid TEXT DEFAULT ''")
+        conn.commit()
 
 
 def _migrate_product_template_columns(conn):
@@ -508,15 +518,16 @@ def create_quote(data, items):
         INSERT INTO quotes (quote_number, date, valid_until, country,
             customer_name, customer_company, customer_street, customer_zip,
             customer_city, customer_country_label, customer_phone, customer_email,
-            project_name, project_description, creator_name, notes, custom_terms,
+            customer_uid, project_name, project_description, creator_name, notes, custom_terms,
             created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         data['quote_number'], data['date'], data['valid_until'], data['country'],
         data['customer_name'], data.get('customer_company', ''),
         data.get('customer_street', ''), data.get('customer_zip', ''),
         data.get('customer_city', ''), data.get('customer_country_label', ''),
         data.get('customer_phone', ''), data.get('customer_email', ''),
+        data.get('customer_uid', ''),
         data.get('project_name', ''), data.get('project_description', ''),
         data.get('creator_name', ''), data.get('notes', ''),
         data.get('custom_terms', ''), now, now
@@ -567,7 +578,7 @@ def update_quote(quote_id, data, items):
         UPDATE quotes SET date=?, valid_until=?, country=?,
             customer_name=?, customer_company=?, customer_street=?, customer_zip=?,
             customer_city=?, customer_country_label=?, customer_phone=?, customer_email=?,
-            project_name=?, project_description=?, creator_name=?, notes=?, custom_terms=?,
+            customer_uid=?, project_name=?, project_description=?, creator_name=?, notes=?, custom_terms=?,
             updated_at=?
         WHERE id=?
     ''', (
@@ -576,6 +587,7 @@ def update_quote(quote_id, data, items):
         data.get('customer_street', ''), data.get('customer_zip', ''),
         data.get('customer_city', ''), data.get('customer_country_label', ''),
         data.get('customer_phone', ''), data.get('customer_email', ''),
+        data.get('customer_uid', ''),
         data.get('project_name', ''), data.get('project_description', ''),
         data.get('creator_name', ''), data.get('notes', ''),
         data.get('custom_terms', ''), now, quote_id
