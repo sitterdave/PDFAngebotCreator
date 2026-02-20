@@ -6,14 +6,22 @@ echo
 
 cd "$(dirname "$0")"
 
+# Python pruefen
+if ! command -v python3 &> /dev/null; then
+    echo ""
+    echo "FEHLER: Python3 nicht gefunden!"
+    echo "Installiere Python: brew install python3 (Mac) oder sudo apt install python3 (Linux)"
+    read -p "Druecke Enter zum Beenden..."
+    exit 1
+fi
+
 # Python-Umgebung pruefen/erstellen
 if [ ! -d "venv" ]; then
     echo "[1/3] Erstelle Python-Umgebung..."
     python3 -m venv venv
     if [ $? -ne 0 ]; then
         echo ""
-        echo "FEHLER: Python3 nicht gefunden!"
-        echo "Installiere Python: brew install python3 (Mac) oder sudo apt install python3 (Linux)"
+        echo "FEHLER: Python-Umgebung konnte nicht erstellt werden!"
         read -p "Druecke Enter zum Beenden..."
         exit 1
     fi
@@ -26,6 +34,13 @@ source venv/bin/activate
 if [ ! -f "venv/.installed" ]; then
     echo "[2/3] Installiere Abhaengigkeiten..."
     pip install -r requirements.txt --quiet
+    if [ $? -ne 0 ]; then
+        echo ""
+        echo "FEHLER: Abhaengigkeiten konnten nicht installiert werden!"
+        echo "Bitte pruefe deine Internetverbindung."
+        read -p "Druecke Enter zum Beenden..."
+        exit 1
+    fi
     touch venv/.installed
 fi
 
@@ -43,3 +58,8 @@ echo
 
 # App starten
 python app.py
+
+# Falls die App beendet wird
+echo ""
+echo "Die App wurde beendet."
+read -p "Druecke Enter zum Beenden..."

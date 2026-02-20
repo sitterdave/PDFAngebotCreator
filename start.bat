@@ -7,15 +7,27 @@ echo.
 
 cd /d "%~dp0"
 
+:: Pruefen ob Python installiert ist
+python --version >nul 2>&1
+if errorlevel 1 (
+    echo.
+    echo FEHLER: Python wurde nicht gefunden!
+    echo.
+    echo Bitte installiere Python von https://www.python.org/downloads/
+    echo WICHTIG: Bei der Installation "Add Python to PATH" ankreuzen!
+    echo.
+    pause
+    exit /b 1
+)
+
 :: Python-Umgebung pruefen/erstellen
 if not exist "venv" (
     echo [1/3] Erstelle Python-Umgebung...
     python -m venv venv
     if errorlevel 1 (
         echo.
-        echo FEHLER: Python nicht gefunden!
-        echo Bitte installiere Python von https://www.python.org/downloads/
-        echo Wichtig: Bei der Installation "Add Python to PATH" ankreuzen!
+        echo FEHLER: Python-Umgebung konnte nicht erstellt werden!
+        echo.
         pause
         exit /b 1
     )
@@ -23,11 +35,27 @@ if not exist "venv" (
 
 :: Aktivieren
 call venv\Scripts\activate.bat
+if errorlevel 1 (
+    echo.
+    echo FEHLER: Python-Umgebung konnte nicht aktiviert werden!
+    echo Versuche den venv Ordner zu loeschen und starte erneut.
+    echo.
+    pause
+    exit /b 1
+)
 
 :: Abhaengigkeiten installieren
 if not exist "venv\.installed" (
     echo [2/3] Installiere Abhaengigkeiten...
     pip install -r requirements.txt --quiet
+    if errorlevel 1 (
+        echo.
+        echo FEHLER: Abhaengigkeiten konnten nicht installiert werden!
+        echo Bitte pruefe deine Internetverbindung.
+        echo.
+        pause
+        exit /b 1
+    )
     echo done > venv\.installed
 )
 
@@ -45,3 +73,13 @@ start "" cmd /c "timeout /t 2 /nobreak >nul & start http://localhost:5000"
 
 :: App starten
 python app.py
+
+:: Falls die App unerwartet beendet wird, Fenster offen halten
+echo.
+echo ========================================
+echo   Die App wurde beendet.
+echo   Falls ein Fehler aufgetreten ist,
+echo   steht die Meldung oben.
+echo ========================================
+echo.
+pause
