@@ -131,12 +131,91 @@ def init_db():
         )
         conn.commit()
 
+    # Migrate existing DB: fix old ae/oe/ue terms and update company defaults
+    _migrate_existing_data(conn)
+
     # Seed product templates if empty
     count = conn.execute("SELECT COUNT(*) as c FROM product_templates").fetchone()['c']
     if count == 0:
         _seed_product_templates(conn)
 
     conn.close()
+
+
+def _migrate_existing_data(conn):
+    """Update existing data that still has old ae/oe/ue text or missing company defaults."""
+    row = conn.execute("SELECT terms_text, company_name FROM company_settings WHERE id = 1").fetchone()
+    if not row:
+        return
+
+    terms = row['terms_text'] or ''
+    company_name = row['company_name'] or ''
+
+    # Check if terms still contain old ae/oe/ue patterns
+    if 'gueltig' in terms or 'groesster' in terms or 'ueber' in terms or 'fuer' in terms or 'durchgefuehrt' in terms:
+        new_terms = (
+            "1) Dieses Angebot ist 30 Tage ab Ausstellungsdatum gültig. "
+            "Nach Ablauf dieser Frist behalten wir uns eine Anpassung der Konditionen vor.\n\n"
+            "2) Wir behandeln Ihre Daten mit größter Sorgfalt. "
+            "Unsere aktuelle Datenschutzerklärung finden Sie auf www.stromsparen24.at "
+            "oder wir senden Ihnen diese auf Anfrage zu.\n\n"
+            "3) Die Zahlung erfolgt in zwei Raten:\n"
+            "    \u2022 50 % Anzahlung bei Angebotsannahme. Eine Anzahlungsrechnung über 50% wird hierzu erstellt.\n"
+            "    \u2022 50 % Restzahlung nach Fertigstellung und Lieferung aller Positionen.\n\n"
+            "4)\n\n"
+            "5) Bitte beachten Sie, dass Stromsparen24.at ein Service der Labsupport GmbH & Co KG ist. "
+            "Deshalb erfolgt die Rechnungsstellung für alle Käufe auf Stromsparen24.at "
+            "durch Labsupport GmbH & Co KG.\n\n"
+            "Partnerfirma für Installationsarbeiten: Alle Installations- und elektrischen Anschlussarbeiten "
+            "werden in Zusammenarbeit mit unserer erfahrenen Partnerfirma ProPhone KG durchgeführt. "
+            "Diese Partnerschaft gewährleistet eine fachgerechte und reibungslose Umsetzung Ihres Projekts.\n"
+        )
+        conn.execute("UPDATE company_settings SET terms_text = ? WHERE id = 1", (new_terms,))
+        conn.commit()
+
+    # Fill in missing company defaults if company_name is still empty
+    if not company_name:
+        conn.execute("""UPDATE company_settings SET
+            company_name = 'Labsupport GmbH & Co KG',
+            company_street = 'Hauptplatz 5',
+            company_zip = '3430',
+            company_city = 'Tulln an der Donau',
+            company_country = 'AT',
+            company_email = 'office@stromsparen24.at',
+            company_website = 'www.stromsparen24.at',
+            company_ust_id = 'ATU69952367',
+            firmenbuchnummer = 'FN 440720v',
+            gerichtsstandort = 'Tulln',
+            bank_name = 'Raiffeisenbank',
+            iban = 'AT44 3254 7000 0101 4591',
+            bic = 'RLNWATWWTLN',
+            default_creator_name = 'David Sitter',
+            brand_name = 'Stromsparen24',
+            brand_slogan = 'UNSER SONNENSYSTEM, IHRE ENERGIEQUELLE.'
+        WHERE id = 1""")
+        conn.commit()
+
+    # Fix old ae/oe/ue in product template descriptions
+    templates = conn.execute("SELECT id, title, description FROM product_templates").fetchall()
+    for t in templates:
+        title = t['title'] or ''
+        desc = t['description'] or ''
+        if any(old in desc for old in ['fuer', 'hoechst', 'zustaendig', 'Enthaelt', 'Kapazitaet', 'waehlbar', 'abschliess']):
+            new_desc = desc
+            replacements = [
+                ('Fuer', 'Für'), ('fuer', 'für'),
+                ('hoechsten', 'höchsten'), ('zustaendigen', 'zuständigen'),
+                ('Enthaelt', 'Enthält'), ('Kapazitaet', 'Kapazität'),
+                ('waehlbar', 'wählbar'), ('abschliessender', 'abschließender'),
+            ]
+            for old, new in replacements:
+                new_desc = new_desc.replace(old, new)
+            if new_desc != desc:
+                conn.execute("UPDATE product_templates SET description = ? WHERE id = ?", (new_desc, t['id']))
+        new_title = title.replace('Anschluesse', 'Anschlüsse')
+        if new_title != title:
+            conn.execute("UPDATE product_templates SET title = ? WHERE id = ?", (new_title, t['id']))
+    conn.commit()
 
 
 def _seed_product_templates(conn):
