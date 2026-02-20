@@ -260,12 +260,15 @@ def generate_quote_pdf(quote, items):
     pdf.set_font(f, '', 9)
     pdf.set_text_color(*BLACK)
 
-    if quote.get('customer_company'):
-        pdf.set_font(f, 'B', 9)
-        pdf.cell(90, 5, quote['customer_company'], ln=True)
-        pdf.set_font(f, '', 9)
+    # Name (mit Anrede) immer zuerst, fett
     if quote.get('customer_name'):
-        pdf.cell(90, 5, quote['customer_name'], ln=True)
+        salutation = quote.get('customer_salutation', '')
+        display_name = f"{salutation} {quote['customer_name']}".strip() if salutation else quote['customer_name']
+        pdf.set_font(f, 'B', 9)
+        pdf.cell(90, 5, display_name, ln=True)
+        pdf.set_font(f, '', 9)
+    if quote.get('customer_company'):
+        pdf.cell(90, 5, quote['customer_company'], ln=True)
     if quote.get('customer_street'):
         pdf.cell(90, 5, quote['customer_street'], ln=True)
     zip_city = f"{quote.get('customer_zip', '')} {quote.get('customer_city', '')}".strip()
