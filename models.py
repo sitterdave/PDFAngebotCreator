@@ -119,7 +119,9 @@ def init_db():
             "durch Labsupport GmbH & Co KG.\n\n"
             "5) Partnerfirma für Installationsarbeiten: Alle Installations- und elektrischen Anschlussarbeiten "
             "werden in Zusammenarbeit mit unserer erfahrenen Partnerfirma ProPhone KG durchgeführt. "
-            "Diese Partnerschaft gewährleistet eine fachgerechte und reibungslose Umsetzung Ihres Projekts.\n"
+            "Diese Partnerschaft gewährleistet eine fachgerechte und reibungslose Umsetzung Ihres Projekts.\n\n"
+            "6) Dieses Angebot ist freibleibend und unverbindlich. "
+            "Irrtümer, Druckfehler und Preisänderungen bleiben ausdrücklich vorbehalten.\n"
         )
         conn.execute(
             """INSERT INTO company_settings (
@@ -261,12 +263,13 @@ def _migrate_existing_data(conn):
     terms = row['terms_text'] or ''
     company_name = row['company_name'] or ''
 
-    # Check if terms need updating: old patterns or wrong numbering
+    # Check if terms need updating: old patterns, wrong numbering, or missing disclaimer
     needs_update = (
         'gueltig' in terms or 'groesster' in terms or 'ueber' in terms
         or 'fuer' in terms or 'durchgefuehrt' in terms
         or '4)\n\n5)' in terms
         or ('\nPartnerfirma' in terms and '5) Partnerfirma' not in terms)
+        or ('5) Partnerfirma' in terms and '6) Dieses Angebot ist freibleibend' not in terms)
     )
     if needs_update:
         new_terms = (
@@ -283,7 +286,9 @@ def _migrate_existing_data(conn):
             "durch Labsupport GmbH & Co KG.\n\n"
             "5) Partnerfirma für Installationsarbeiten: Alle Installations- und elektrischen Anschlussarbeiten "
             "werden in Zusammenarbeit mit unserer erfahrenen Partnerfirma ProPhone KG durchgeführt. "
-            "Diese Partnerschaft gewährleistet eine fachgerechte und reibungslose Umsetzung Ihres Projekts.\n"
+            "Diese Partnerschaft gewährleistet eine fachgerechte und reibungslose Umsetzung Ihres Projekts.\n\n"
+            "6) Dieses Angebot ist freibleibend und unverbindlich. "
+            "Irrtümer, Druckfehler und Preisänderungen bleiben ausdrücklich vorbehalten.\n"
         )
         conn.execute("UPDATE company_settings SET terms_text = ? WHERE id = 1", (new_terms,))
         conn.commit()
