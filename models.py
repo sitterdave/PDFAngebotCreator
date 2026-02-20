@@ -140,10 +140,10 @@ def init_db():
                 default_valid_days, default_country, default_creator_name,
                 terms_text, brand_name, brand_slogan
             ) VALUES (
-                1, 'Labsupport GmbH & Co KG', 'Hauptplatz 5', '3430', 'Tulln an der Donau',
+                1, 'Labsupport GmbH & Co KG', 'Hauptstraße 132', '3441', 'Baumgarten',
                 'AT', 'office@stromsparen24.at', 'www.stromsparen24.at',
                 'ATU69952367', 'FN 440720v', 'Tulln',
-                'Raiffeisenbank', 'AT44 3254 7000 0101 4591', 'RLNWATWWTLN',
+                'Raiffeisenbank', 'AT51 3200 2001 0190 1826', 'RLNWATW1002',
                 30, 'AT', 'David Sitter',
                 ?, 'Stromsparen24', 'UNSER SONNENSYSTEM, IHRE ENERGIEQUELLE.'
             )""",
@@ -314,9 +314,9 @@ def _migrate_existing_data(conn):
     if not company_name:
         conn.execute("""UPDATE company_settings SET
             company_name = 'Labsupport GmbH & Co KG',
-            company_street = 'Hauptplatz 5',
-            company_zip = '3430',
-            company_city = 'Tulln an der Donau',
+            company_street = 'Hauptstraße 132',
+            company_zip = '3441',
+            company_city = 'Baumgarten',
             company_country = 'AT',
             company_email = 'office@stromsparen24.at',
             company_website = 'www.stromsparen24.at',
@@ -324,11 +324,25 @@ def _migrate_existing_data(conn):
             firmenbuchnummer = 'FN 440720v',
             gerichtsstandort = 'Tulln',
             bank_name = 'Raiffeisenbank',
-            iban = 'AT44 3254 7000 0101 4591',
-            bic = 'RLNWATWWTLN',
+            iban = 'AT51 3200 2001 0190 1826',
+            bic = 'RLNWATW1002',
             default_creator_name = 'David Sitter',
             brand_name = 'Stromsparen24',
             brand_slogan = 'UNSER SONNENSYSTEM, IHRE ENERGIEQUELLE.'
+        WHERE id = 1""")
+        conn.commit()
+
+    # Update old address and bank details to new values
+    current = conn.execute(
+        "SELECT company_street, iban FROM company_settings WHERE id = 1"
+    ).fetchone()
+    if current and (current['company_street'] == 'Hauptplatz 5' or current['iban'] == 'AT44 3254 7000 0101 4591'):
+        conn.execute("""UPDATE company_settings SET
+            company_street = 'Hauptstraße 132',
+            company_zip = '3441',
+            company_city = 'Baumgarten',
+            iban = 'AT51 3200 2001 0190 1826',
+            bic = 'RLNWATW1002'
         WHERE id = 1""")
         conn.commit()
 
