@@ -271,8 +271,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function addProductToQuote(product, btnElement) {
         const price = getTemplatePriceValue(product);
+        let title = product.title;
+
+        // Append Stellplatz info for carport products
+        if (product.is_carport && product.category === 'Carport') {
+            const slots = document.getElementById('slotCount') ? document.getElementById('slotCount').value : '2';
+            const slotLabel = slots === '1' ? '1 Stellplatz' : slots + ' Stellplätze';
+            // Only append if title doesn't already contain Stellplatz info
+            if (!/Stellpl/i.test(title)) {
+                title += ' – ' + slotLabel;
+            }
+        }
+
         addItemRow({
-            title: product.title,
+            title: title,
             description: product.description || '',
             quantity: product.default_quantity || '1x',
             price: price,
