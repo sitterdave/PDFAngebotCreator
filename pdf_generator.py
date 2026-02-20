@@ -17,7 +17,7 @@ from models import calculate_quote_totals, get_company_settings
 STATIC_DIR = os.path.join(os.path.dirname(__file__), 'static')
 
 # Blue accent color matching the brand
-BLUE = (25, 118, 210)
+BLUE = (51, 147, 198)
 BLACK = (0, 0, 0)
 GRAY = (100, 100, 100)
 WHITE = (255, 255, 255)
