@@ -85,7 +85,7 @@ class QuotePDF(FPDF):
         if logo:
             full_path = os.path.join(STATIC_DIR, 'uploads', logo)
             if os.path.exists(full_path):
-                self.image(full_path, x=10, y=5, h=32)
+                self.image(full_path, x=10, y=5, h=42)
 
         # Brand name fallback (if no logo)
         brand = self.company.get('brand_slogan', '') or self.company.get('brand_name', '')
