@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Angebote - Angebot Creator{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-list-ul"></i> Angebote</h2>
+    <a href="{{ url_for('new_quote') }}" class="btn btn-teal">
+        <i class="bi bi-plus-circle"></i> Neues Angebot
+    </a>
+</div>
+
+{% if quotes %}
+<div class="table-responsive">
+    <table class="table table-hover">
+        <thead class="table-teal">
+            <tr>
+                <th>Nr.</th>
+                <th>Datum</th>
+                <th>Kunde</th>
+                <th>Ersteller</th>
+                <th>Land</th>
+                <th class="text-end">Netto</th>
+                <th class="text-end">Brutto</th>
+                <th class="text-center">Aktionen</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for q in quotes %}
+            <tr>
+                <td><strong>{{ q.quote_number }}</strong></td>
+                <td>{{ q.date }}</td>
+                <td>{{ q.customer_name }}</td>
+                <td>{{ q.creator_name or '-' }}</td>
+                <td>
+                    <span class="badge {{ 'bg-primary' if q.country == 'DE' else 'bg-teal' }}">
+                        {{ q.country }}
+                    </span>
+                </td>
+                <td class="text-end">{{ "%.2f"|format(q.netto) }} &euro;</td>
+                <td class="text-end"><strong>{{ "%.2f"|format(q.brutto) }} &euro;</strong></td>
+                <td class="text-center">
+                    <div class="btn-group btn-group-sm">
+                        <a href="{{ url_for('view_quote', quote_id=q.id) }}" class="btn btn-outline-primary" title="Ansehen">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                        <a href="{{ url_for('edit_quote', quote_id=q.id) }}" class="btn btn-outline-secondary" title="Bearbeiten">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                        <a href="{{ url_for('download_pdf', quote_id=q.id) }}" class="btn btn-outline-danger" title="PDF Download">
+                            <i class="bi bi-file-pdf"></i>
+                        </a>
+                        <form method="post" action="{{ url_for('duplicate_quote_route', quote_id=q.id) }}" class="d-inline">
+                            <button type="submit" class="btn btn-outline-info btn-sm" title="Duplizieren">
+                                <i class="bi bi-copy"></i>
+                            </button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="text-center py-5">
+    <i class="bi bi-inbox display-1 text-muted"></i>
+    <p class="text-muted mt-3">Noch keine Angebote vorhanden.</p>
+    <a href="{{ url_for('new_quote') }}" class="btn btn-teal mt-2">
+        <i class="bi bi-plus-circle"></i> Erstes Angebot erstellen
+    </a>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% block title %}Angebot {{ quote.quote_number }} - Angebot Creator{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-file-text"></i> Angebot {{ quote.quote_number }}</h2>
+    <div class="btn-group">
+        <a href="{{ url_for('edit_quote', quote_id=quote.id) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-pencil"></i> Bearbeiten
+        </a>
+        <a href="{{ url_for('preview_pdf', quote_id=quote.id) }}" class="btn btn-outline-primary" target="_blank">
+            <i class="bi bi-eye"></i> PDF Vorschau
+        </a>
+        <a href="{{ url_for('download_pdf', quote_id=quote.id) }}" class="btn btn-danger">
+            <i class="bi bi-file-pdf"></i> PDF herunterladen
+        </a>
+        <form method="post" action="{{ url_for('duplicate_quote_route', quote_id=quote.id) }}" class="d-inline">
+            <button type="submit" class="btn btn-outline-info">
+                <i class="bi bi-copy"></i> Duplizieren
+            </button>
+        </form>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Left column: Quote details -->
+    <div class="col-md-8">
+        <!-- Two-column: Empfaenger / Ersteller -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-header bg-teal text-white">
+                        <i class="bi bi-person"></i> Empfaenger
+                    </div>
+                    <div class="card-body">
+                        {% if quote.customer_company %}
+                            <strong>{{ quote.customer_company }}</strong><br>
+                        {% endif %}
+                        {{ quote.customer_name }}<br>
+                        {% if quote.customer_street %}{{ quote.customer_street }}<br>{% endif %}
+                        {% if quote.customer_zip or quote.customer_city %}
+                            {{ quote.customer_zip }} {{ quote.customer_city }}<br>
+                        {% endif %}
+                        {% if quote.customer_country_label %}{{ quote.customer_country_label }}<br>{% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-header bg-teal text-white">
+                        <i class="bi bi-building"></i> Ersteller
+                    </div>
+                    <div class="card-body">
+                        {% if quote.creator_name %}{{ quote.creator_name }}<br>{% endif %}
+                        {% if settings.company_name %}{{ settings.company_name }}<br>{% endif %}
+                        {% if settings.company_street %}
+                            {{ settings.company_zip }} {{ settings.company_city }} {{ settings.company_street }}<br>
+                        {% endif %}
+                        {% if settings.company_ust_id %}UID: {{ settings.company_ust_id }}{% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Items -->
+        <div class="card mb-4">
+            <div class="card-header bg-teal text-white">
+                <i class="bi bi-list-ol"></i> Positionen
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table mb-0">
+                        <thead class="table-teal">
+                            <tr>
+                                <th style="width: 50px">Pos</th>
+                                <th>Beschreibung</th>
+                                <th style="width: 70px">Menge</th>
+                                <th class="text-end" style="width: 120px">Gesamtkosten [&euro;]</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in totals.positions %}
+                            <tr>
+                                <td class="text-center">{{ item.position }}</td>
+                                <td>
+                                    {% if item.title %}<strong>{{ item.title }}</strong><br>{% endif %}
+                                    <span class="text-muted">{{ item.description }}</span>
+                                    {% if item.is_carport and quote.country == 'DE' %}
+                                        <span class="badge bg-info ms-1">Carport 19%</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">{{ item.quantity }}</td>
+                                <td class="text-end">{{ "%.2f"|format(item.total_price|float) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer">
+                <div class="row justify-content-end">
+                    <div class="col-md-5">
+                        <table class="table table-sm mb-0">
+                            <tr>
+                                <td><strong>Summe netto [&euro;]</strong></td>
+                                <td class="text-end"><strong>{{ "%.2f"|format(totals.netto) }}</strong></td>
+                            </tr>
+                            {% if quote.country == 'AT' %}
+                            <tr>
+                                <td>20 % MwSt.</td>
+                                <td class="text-end">{{ "%.2f"|format(totals.vat_total) }}</td>
+                            </tr>
+                            {% elif quote.country == 'DE' %}
+                                {% set vat19 = totals.positions|selectattr('vat_rate', 'equalto', 19.0)|map(attribute='vat_amount')|sum %}
+                                {% if vat19 > 0 %}
+                                <tr>
+                                    <td>19 % MwSt. (Carport)</td>
+                                    <td class="text-end">{{ "%.2f"|format(vat19) }}</td>
+                                </tr>
+                                {% endif %}
+                                <tr>
+                                    <td>0 % MwSt. (Sonstiges)</td>
+                                    <td class="text-end">0,00</td>
+                                </tr>
+                            {% endif %}
+                            <tr class="fw-bold fs-5">
+                                <td><strong>Summe brutto [&euro;]</strong></td>
+                                <td class="text-end"><strong>{{ "%.2f"|format(totals.brutto) }}</strong></td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right column: Meta info -->
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header bg-teal text-white">
+                <i class="bi bi-info-circle"></i> Angebotsdetails
+            </div>
+            <div class="card-body">
+                <table class="table table-sm mb-0">
+                    <tr>
+                        <td class="text-muted">Nummer:</td>
+                        <td>{{ quote.quote_number }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Datum:</td>
+                        <td>{{ quote.date }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Gueltig bis:</td>
+                        <td>{{ quote.valid_until }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Land:</td>
+                        <td>
+                            <span class="badge {{ 'bg-primary' if quote.country == 'DE' else 'bg-teal' }}">
+                                {{ 'Deutschland' if quote.country == 'DE' else 'Oesterreich' }}
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">MwSt-Regel:</td>
+                        <td>
+                            {% if quote.country == 'AT' %}
+                                20% auf alle Positionen
+                            {% else %}
+                                19% nur auf Carport, 0% auf Rest
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% if quote.creator_name %}
+                    <tr>
+                        <td class="text-muted">Ersteller:</td>
+                        <td>{{ quote.creator_name }}</td>
+                    </tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+
+        {% if quote.notes %}
+        <div class="card mb-4">
+            <div class="card-header bg-teal text-white">
+                <i class="bi bi-chat-text"></i> Interne Notizen
+            </div>
+            <div class="card-body">
+                <p class="mb-0" style="white-space: pre-wrap;">{{ quote.notes }}</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Delete -->
+        <div class="card border-danger">
+            <div class="card-body">
+                <form method="post" action="{{ url_for('delete_quote_route', quote_id=quote.id) }}"
+                      onsubmit="return confirm('Angebot wirklich loeschen?')">
+                    <button type="submit" class="btn btn-outline-danger w-100">
+                        <i class="bi bi-trash"></i> Angebot loeschen
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

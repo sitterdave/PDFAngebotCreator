@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+{% block title %}Einstellungen - Angebot Creator{% endblock %}
+
+{% block content %}
+<h2><i class="bi bi-gear"></i> Einstellungen</h2>
+<p class="text-muted">Firmendaten, Logo und Standardwerte konfigurieren. Diese Daten erscheinen auf allen Angeboten.</p>
+
+<form method="post" enctype="multipart/form-data">
+    <div class="row g-4">
+        <!-- Left column -->
+        <div class="col-md-8">
+            <!-- Company info -->
+            <div class="card mb-4">
+                <div class="card-header bg-teal text-white">
+                    <i class="bi bi-building"></i> Firmendaten
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Firmenname</label>
+                            <input type="text" name="company_name" class="form-control"
+                                   value="{{ settings.company_name }}" placeholder="z.B. Labsupport GmbH &amp; Co KG">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Markenname</label>
+                            <input type="text" name="brand_name" class="form-control"
+                                   value="{{ settings.brand_name }}" placeholder="z.B. Stromsparen24">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Land</label>
+                            <select name="company_country" class="form-select">
+                                <option value="AT" {{ 'selected' if settings.company_country == 'AT' }}>&Ouml;sterreich</option>
+                                <option value="DE" {{ 'selected' if settings.company_country == 'DE' }}>Deutschland</option>
+                            </select>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">Slogan (wird unter Logo angezeigt, falls kein Logo)</label>
+                            <input type="text" name="brand_slogan" class="form-control"
+                                   value="{{ settings.brand_slogan }}" placeholder="z.B. UNSER SONNENSYSTEM, IHRE ENERGIEQUELLE.">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Strasse</label>
+                            <input type="text" name="company_street" class="form-control"
+                                   value="{{ settings.company_street }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">PLZ</label>
+                            <input type="text" name="company_zip" class="form-control"
+                                   value="{{ settings.company_zip }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Ort</label>
+                            <input type="text" name="company_city" class="form-control"
+                                   value="{{ settings.company_city }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Telefon</label>
+                            <input type="text" name="company_phone" class="form-control"
+                                   value="{{ settings.company_phone }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">E-Mail</label>
+                            <input type="email" name="company_email" class="form-control"
+                                   value="{{ settings.company_email }}" placeholder="office@example.at">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Website</label>
+                            <input type="text" name="company_website" class="form-control"
+                                   value="{{ settings.company_website }}" placeholder="www.example.at">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tax & Bank -->
+            <div class="card mb-4">
+                <div class="card-header bg-teal text-white">
+                    <i class="bi bi-bank"></i> Steuer &amp; Bankdaten
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Steuernummer</label>
+                            <input type="text" name="company_tax_number" class="form-control"
+                                   value="{{ settings.company_tax_number }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">UID (USt-IdNr.)</label>
+                            <input type="text" name="company_ust_id" class="form-control"
+                                   value="{{ settings.company_ust_id }}" placeholder="z.B. ATU69952367">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Firmenbuchnummer</label>
+                            <input type="text" name="firmenbuchnummer" class="form-control"
+                                   value="{{ settings.firmenbuchnummer }}" placeholder="z.B. FN 440720v">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Gerichtsstandort</label>
+                            <input type="text" name="gerichtsstandort" class="form-control"
+                                   value="{{ settings.gerichtsstandort }}" placeholder="z.B. Tulln">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Bankname</label>
+                            <input type="text" name="bank_name" class="form-control"
+                                   value="{{ settings.bank_name }}" placeholder="z.B. Raiffeisenbank">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">IBAN</label>
+                            <input type="text" name="iban" class="form-control"
+                                   value="{{ settings.iban }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">BIC</label>
+                            <input type="text" name="bic" class="form-control"
+                                   value="{{ settings.bic }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Default Terms -->
+            <div class="card mb-4">
+                <div class="card-header bg-teal text-white">
+                    <i class="bi bi-file-text"></i> Standard AGB / Angebotsbedingungen
+                </div>
+                <div class="card-body">
+                    <label class="form-label">Dieser Text wird als Seite 2 in neue Angebote eingefuegt</label>
+                    <textarea name="terms_text" class="form-control" rows="10">{{ settings.terms_text }}</textarea>
+                </div>
+            </div>
+
+            <!-- Defaults -->
+            <div class="card mb-4">
+                <div class="card-header bg-teal text-white">
+                    <i class="bi bi-sliders"></i> Standardwerte
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Standard-Gueltigkeit (Tage)</label>
+                            <input type="number" name="default_valid_days" class="form-control"
+                                   value="{{ settings.default_valid_days or 30 }}" min="1">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Standard-Land</label>
+                            <select name="default_country" class="form-select">
+                                <option value="AT" {{ 'selected' if settings.default_country == 'AT' }}>&Ouml;sterreich</option>
+                                <option value="DE" {{ 'selected' if settings.default_country == 'DE' }}>Deutschland</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Standard-Ersteller</label>
+                            <input type="text" name="default_creator_name" class="form-control"
+                                   value="{{ settings.default_creator_name }}" placeholder="z.B. David Sitter">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right column: Logo -->
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header bg-teal text-white">
+                    <i class="bi bi-image"></i> Firmenlogo
+                </div>
+                <div class="card-body text-center">
+                    {% if settings.logo_path %}
+                        <img src="{{ url_for('static', filename='uploads/' + settings.logo_path) }}"
+                             alt="Logo" class="img-fluid mb-3" style="max-height: 120px;">
+                        <br>
+                        <form method="post" action="{{ url_for('delete_logo') }}" class="d-inline">
+                            <button type="submit" class="btn btn-sm btn-outline-danger mb-3">
+                                <i class="bi bi-trash"></i> Logo entfernen
+                            </button>
+                        </form>
+                    {% else %}
+                        <div class="py-4 text-muted">
+                            <i class="bi bi-image display-4"></i>
+                            <p class="mt-2">Kein Logo hochgeladen</p>
+                        </div>
+                    {% endif %}
+                    <div>
+                        <label class="form-label">Neues Logo hochladen</label>
+                        <input type="file" name="logo" class="form-control"
+                               accept="image/png,image/jpeg,image/gif,image/svg+xml,image/webp">
+                        <small class="text-muted">PNG, JPG, GIF, SVG oder WebP. Wird links oben im PDF angezeigt.</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header bg-teal text-white">
+                    <i class="bi bi-info-circle"></i> MwSt-Info
+                </div>
+                <div class="card-body">
+                    <h6>&Ouml;sterreich (AT)</h6>
+                    <ul class="small">
+                        <li><strong>Alle Positionen:</strong> 20% MwSt</li>
+                    </ul>
+                    <h6>Deutschland (DE)</h6>
+                    <ul class="small mb-0">
+                        <li><strong>Carport-Positionen:</strong> 19% MwSt</li>
+                        <li><strong>Alles andere:</strong> 0% MwSt</li>
+                    </ul>
+                    <hr>
+                    <small class="text-muted">
+                        Bei der Angebotserstellung markieren Sie Carport-Positionen
+                        mit der Checkbox. Nur relevant fuer Deutschland.
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-teal btn-lg mb-4">
+        <i class="bi bi-save"></i> Einstellungen speichern
+    </button>
+</form>
+{% endblock %}

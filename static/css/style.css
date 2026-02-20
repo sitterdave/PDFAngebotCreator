@@ -1,0 +1,109 @@
+/* Teal accent color matching the Stromsparen24 brand */
+:root {
+    --teal: #009788;
+    --teal-dark: #00796b;
+    --teal-light: #b2dfdb;
+}
+
+/* Navbar */
+.navbar {
+    background-color: var(--teal) !important;
+}
+
+.navbar-brand {
+    font-weight: bold;
+}
+
+/* Cards */
+.bg-teal {
+    background-color: var(--teal) !important;
+    color: white;
+}
+
+.btn-teal {
+    background-color: var(--teal);
+    border-color: var(--teal);
+    color: white;
+}
+
+.btn-teal:hover {
+    background-color: var(--teal-dark);
+    border-color: var(--teal-dark);
+    color: white;
+}
+
+.badge.bg-teal {
+    background-color: var(--teal) !important;
+}
+
+/* Table with teal header */
+.table-teal {
+    background-color: var(--teal);
+    color: white;
+}
+
+.table-teal th {
+    color: white;
+    border-color: var(--teal);
+}
+
+/* Items table in quote form */
+#itemsTable .item-row td {
+    vertical-align: middle;
+}
+
+#itemsTable textarea {
+    min-height: 50px;
+}
+
+/* Footer */
+footer {
+    background-color: var(--teal) !important;
+}
+
+/* Flash messages */
+.alert {
+    border-radius: 4px;
+}
+
+/* Card styling */
+.card {
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.card-header {
+    border-radius: 6px 6px 0 0 !important;
+    font-weight: 600;
+}
+
+/* Position numbers */
+.pos-number {
+    font-weight: bold;
+    color: var(--teal);
+}
+
+/* Totals row */
+.totals-row {
+    background-color: var(--teal);
+    color: white;
+    font-weight: bold;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .btn-group {
+        flex-direction: column;
+    }
+}
+
+/* Make the quote view table match the PDF style */
+.quote-view-table th {
+    background-color: var(--teal);
+    color: white;
+}
+
+/* Hover effect for quote list */
+.table-hover tbody tr:hover {
+    background-color: var(--teal-light);
+}
