@@ -26,6 +26,14 @@ def fmt(value):
     return s
 
 
+def _is_delivery_or_installation(title):
+    """Check if item is a delivery or installation position by title."""
+    t = (title or '').lower()
+    return ('lieferung' in t or 'installation' in t or 'montage' in t
+            or 'anschlussarbeiten' in t or 'inbetriebnahme' in t
+            or 'elektrische anschlüsse' in t)
+
+
 def format_date_german(date_str):
     """Convert YYYY-MM-DD to 'DD. Monat YYYY' German format."""
     if not date_str:
@@ -260,15 +268,14 @@ def generate_quote_pdf(quote, items):
     pdf.set_font(f, '', 9)
     pdf.set_text_color(*BLACK)
 
-    # Name (mit Anrede) immer zuerst, fett
+    if quote.get('customer_company'):
+        pdf.set_font(f, 'B', 9)
+        pdf.cell(90, 5, quote['customer_company'], ln=True)
+        pdf.set_font(f, '', 9)
     if quote.get('customer_name'):
         salutation = quote.get('customer_salutation', '')
         display_name = f"{salutation} {quote['customer_name']}".strip() if salutation else quote['customer_name']
-        pdf.set_font(f, 'B', 9)
         pdf.cell(90, 5, display_name, ln=True)
-        pdf.set_font(f, '', 9)
-    if quote.get('customer_company'):
-        pdf.cell(90, 5, quote['customer_company'], ln=True)
     if quote.get('customer_street'):
         pdf.cell(90, 5, quote['customer_street'], ln=True)
     zip_city = f"{quote.get('customer_zip', '')} {quote.get('customer_city', '')}".strip()
@@ -532,17 +539,23 @@ def _draw_items_table(pdf, totals, country):
             pdf.set_x(desc_x)
             pdf.multi_cell(col_desc - 4, 4, desc, align='L')
 
-        # Menge (centered vertically)
+        # Menge (centered vertically) – hide for delivery/installation
+        hide_qty = _is_delivery_or_installation(title)
         pdf.set_font(f, '', 9)
         pdf.set_text_color(*BLACK)
         pdf.set_xy(x_start + col_pos + col_desc, pos_y)
-        pdf.cell(col_menge, 5, str(quantity), align='C')
+        if not hide_qty:
+            pdf.cell(col_menge, 5, str(quantity), align='C')
 
         # Gesamtkosten (centered vertically, right-aligned)
         pdf.set_font(f, 'B', 9)
         pdf.set_text_color(*BLACK)
         pdf.set_xy(x_start + col_pos + col_desc + col_menge, pos_y)
-        pdf.cell(col_total - 3, 5, fmt(price) + ' \u20ac', align='R')
+        if price == 0:
+            pdf.set_font(f, '', 7)
+            pdf.cell(col_total - 3, 5, 'nach Besichtigung', align='R')
+        else:
+            pdf.cell(col_total - 3, 5, fmt(price) + ' \u20ac', align='R')
 
         pdf.set_y(row_y + row_h)
         row_idx += 1
@@ -622,17 +635,23 @@ def _draw_items_table(pdf, totals, country):
                 pdf.set_x(desc_x)
                 pdf.multi_cell(col_desc - 4, 4, desc, align='L')
 
-            # Menge
+            # Menge – hide for delivery/installation
+            hide_qty = _is_delivery_or_installation(title)
             pdf.set_font(f, '', 9)
             pdf.set_text_color(*BLACK)
             pdf.set_xy(x_start + col_pos + col_desc, pos_y)
-            pdf.cell(col_menge, 5, str(quantity), align='C')
+            if not hide_qty:
+                pdf.cell(col_menge, 5, str(quantity), align='C')
 
             # Gesamtkosten
             pdf.set_font(f, 'B', 9)
             pdf.set_text_color(*BLACK)
             pdf.set_xy(x_start + col_pos + col_desc + col_menge, pos_y)
-            pdf.cell(col_total - 3, 5, fmt(price) + ' \u20ac', align='R')
+            if price == 0:
+                pdf.set_font(f, '', 7)
+                pdf.cell(col_total - 3, 5, 'nach Besichtigung', align='R')
+            else:
+                pdf.cell(col_total - 3, 5, fmt(price) + ' \u20ac', align='R')
 
             pdf.set_y(row_y + row_h)
             row_idx += 1
