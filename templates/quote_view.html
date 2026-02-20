@@ -250,6 +250,7 @@ document.getElementById('mailto-btn').addEventListener('click', function(e) {
 
     var email = {{ quote.customer_email|tojson }};
     var customerName = {{ quote.customer_name|tojson }};
+    var lastName = customerName.trim().split(/\s+/).pop();
     var salutation = {{ (quote.customer_salutation or '')|tojson }};
     var quoteNumber = {{ quote.quote_number|tojson }};
 
@@ -261,14 +262,14 @@ document.getElementById('mailto-btn').addEventListener('click', function(e) {
     {% endif %}
     {% endfor %}
 
-    // Anrede: "Sehr geehrter Herr Name" / "Sehr geehrte Frau Name" / "Sehr geehrte/r Name"
+    // Anrede: "Sehr geehrter Herr Müller" / "Sehr geehrte Frau Müller" (nur Nachname)
     var anrede;
     if (salutation === 'Herr') {
-        anrede = 'Sehr geehrter Herr ' + customerName;
+        anrede = 'Sehr geehrter Herr ' + lastName;
     } else if (salutation === 'Frau') {
-        anrede = 'Sehr geehrte Frau ' + customerName;
+        anrede = 'Sehr geehrte Frau ' + lastName;
     } else {
-        anrede = 'Sehr geehrte/r ' + customerName;
+        anrede = 'Sehr geehrte/r ' + lastName;
     }
 
     var betreff = 'Ihr Angebot Nr. ' + quoteNumber + ' | Stromsparen24';
@@ -303,6 +304,7 @@ document.getElementById('mailto-schneelast-btn').addEventListener('click', funct
 
     var email = {{ quote.customer_email|tojson }};
     var customerName = {{ quote.customer_name|tojson }};
+    var lastName = customerName.trim().split(/\s+/).pop();
     var salutation = {{ (quote.customer_salutation or '')|tojson }};
     var quoteNumber = {{ quote.quote_number|tojson }};
 
@@ -314,14 +316,14 @@ document.getElementById('mailto-schneelast-btn').addEventListener('click', funct
     {% endif %}
     {% endfor %}
 
-    // Anrede
+    // Anrede (nur Nachname)
     var anrede;
     if (salutation === 'Herr') {
-        anrede = 'Sehr geehrter Herr ' + customerName;
+        anrede = 'Sehr geehrter Herr ' + lastName;
     } else if (salutation === 'Frau') {
-        anrede = 'Sehr geehrte Frau ' + customerName;
+        anrede = 'Sehr geehrte Frau ' + lastName;
     } else {
-        anrede = 'Sehr geehrte/r ' + customerName;
+        anrede = 'Sehr geehrte/r ' + lastName;
     }
 
     var betreff = 'Ihr Angebot Nr. ' + quoteNumber + ' | Schneelast-Hinweis | Stromsparen24';
