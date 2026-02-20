@@ -656,6 +656,7 @@ def calculate_quote_totals(items, country):
     """
     netto = 0
     item_details = []
+    regular_pos = 0
 
     for item in items:
         price = float(item.get('total_price', 0) or 0)
@@ -670,12 +671,17 @@ def calculate_quote_totals(items, country):
 
         vat_amount = price * (vat_rate / 100)
 
-        # Optionale Positionen nicht in Summe zählen
+        # Optionale Positionen nicht in Summe zählen und keine Positionsnummer
         if not is_optional:
             netto += price
+            regular_pos += 1
+            display_pos = regular_pos
+        else:
+            display_pos = None
 
         item_details.append({
             **item,
+            'display_position': display_pos,
             'vat_rate': vat_rate,
             'vat_amount': vat_amount if not is_optional else 0,
         })

@@ -477,7 +477,7 @@ def _draw_items_table(pdf, totals, country):
         pdf.set_text_color(*BLUE)
         pos_y = row_y + (row_h / 2) - 2.5
         pdf.set_xy(x_start, pos_y)
-        pdf.cell(col_pos, 5, str(item['position']), align='C')
+        pdf.cell(col_pos, 5, str(item.get('display_position', item['position'])), align='C')
 
         # Description: title (bold) + description (regular)
         desc_x = x_start + col_pos + 2
@@ -562,12 +562,12 @@ def _draw_items_table(pdf, totals, country):
             pdf.line(x_sep, row_y, x_sep, row_y + row_h)
             pdf.line(line_end, row_y, line_end, row_y + row_h)
 
-            # Pos number
-            pdf.set_font(f, 'B', 9)
-            pdf.set_text_color(*BLUE)
+            # No position number for optional items
+            pdf.set_font(f, '', 9)
+            pdf.set_text_color(*GRAY)
             pos_y = row_y + (row_h / 2) - 2.5
             pdf.set_xy(x_start, pos_y)
-            pdf.cell(col_pos, 5, str(item['position']), align='C')
+            pdf.cell(col_pos, 5, '\u2013', align='C')
 
             # Description
             desc_x = x_start + col_pos + 2

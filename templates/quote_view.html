@@ -83,7 +83,7 @@
                             {% for item in totals.positions %}
                             {% if not item.is_optional %}
                             <tr>
-                                <td class="text-center">{{ item.position }}</td>
+                                <td class="text-center">{{ item.display_position }}</td>
                                 <td>
                                     {% if item.title %}<strong>{{ item.title }}</strong><br>{% endif %}
                                     <span class="text-muted">{{ item.description }}</span>
@@ -105,7 +105,7 @@
                             </tr>
                             {% for item in optional_items %}
                             <tr class="table-warning" style="opacity: 0.85;">
-                                <td class="text-center">{{ item.position }}</td>
+                                <td class="text-center">&ndash;</td>
                                 <td>
                                     {% if item.title %}<strong>{{ item.title }}</strong><br>{% endif %}
                                     <span class="text-muted">{{ item.description }}</span>
