@@ -55,7 +55,15 @@
         </div>
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-md-6">
+                <div class="col-md-2">
+                    <label class="form-label">Anrede</label>
+                    <select name="customer_salutation" class="form-select">
+                        <option value="" {% if not quote.customer_salutation %}selected{% endif %}>–</option>
+                        <option value="Herr" {% if quote.customer_salutation == 'Herr' %}selected{% endif %}>Herr</option>
+                        <option value="Frau" {% if quote.customer_salutation == 'Frau' %}selected{% endif %}>Frau</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
                     <label class="form-label">Name *</label>
                     <input type="text" name="customer_name" class="form-control"
                            value="{{ quote.customer_name }}" required>

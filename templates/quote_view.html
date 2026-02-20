@@ -250,6 +250,7 @@ document.getElementById('mailto-btn').addEventListener('click', function(e) {
 
     var email = {{ quote.customer_email|tojson }};
     var customerName = {{ quote.customer_name|tojson }};
+    var salutation = {{ (quote.customer_salutation or '')|tojson }};
     var quoteNumber = {{ quote.quote_number|tojson }};
 
     // Carport-Modell aus Items ermitteln
@@ -260,9 +261,19 @@ document.getElementById('mailto-btn').addEventListener('click', function(e) {
     {% endif %}
     {% endfor %}
 
+    // Anrede: "Sehr geehrter Herr Name" / "Sehr geehrte Frau Name" / "Sehr geehrte/r Name"
+    var anrede;
+    if (salutation === 'Herr') {
+        anrede = 'Sehr geehrter Herr ' + customerName;
+    } else if (salutation === 'Frau') {
+        anrede = 'Sehr geehrte Frau ' + customerName;
+    } else {
+        anrede = 'Sehr geehrte/r ' + customerName;
+    }
+
     var betreff = 'Ihr Angebot Nr. ' + quoteNumber + ' | Stromsparen24';
 
-    var text = 'Sehr geehrte/r ' + customerName + ',\n\n'
+    var text = anrede + ',\n\n'
         + 'im Anhang finden Sie Ihr persönliches Angebot'
         + (carportModel ? ' für das ' + carportModel + '.' : '.')
         + '\n\n'
@@ -293,20 +304,30 @@ document.getElementById('mailto-schneelast-btn').addEventListener('click', funct
 
     var email = {{ quote.customer_email|tojson }};
     var customerName = {{ quote.customer_name|tojson }};
+    var salutation = {{ (quote.customer_salutation or '')|tojson }};
     var quoteNumber = {{ quote.quote_number|tojson }};
 
     // Carport-Modell aus Items ermitteln
     var carportModel = '';
-    var stellplaetze = '';
     {% for item in totals.positions %}
     {% if item.is_carport %}
     carportModel = {{ item.title|tojson }};
     {% endif %}
     {% endfor %}
 
+    // Anrede
+    var anrede;
+    if (salutation === 'Herr') {
+        anrede = 'Sehr geehrter Herr ' + customerName;
+    } else if (salutation === 'Frau') {
+        anrede = 'Sehr geehrte Frau ' + customerName;
+    } else {
+        anrede = 'Sehr geehrte/r ' + customerName;
+    }
+
     var betreff = 'Ihr Angebot Nr. ' + quoteNumber + ' | Schneelast-Hinweis | Stromsparen24';
 
-    var text = 'Sehr geehrte/r ' + customerName + ',\n\n'
+    var text = anrede + ',\n\n'
         + 'im Anhang finden Sie Ihr persönliches Angebot'
         + (carportModel ? ' für das ' + carportModel + '.' : '.')
         + '\n\n'

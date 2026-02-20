@@ -48,6 +48,7 @@ def init_db():
             date TEXT NOT NULL,
             valid_until TEXT NOT NULL,
             country TEXT NOT NULL DEFAULT 'AT',
+            customer_salutation TEXT DEFAULT '',
             customer_name TEXT NOT NULL,
             customer_company TEXT DEFAULT '',
             customer_street TEXT DEFAULT '',
@@ -171,6 +172,9 @@ def _migrate_quotes_columns(conn):
     existing = [col[1] for col in conn.execute("PRAGMA table_info(quotes)").fetchall()]
     if 'customer_uid' not in existing:
         conn.execute("ALTER TABLE quotes ADD COLUMN customer_uid TEXT DEFAULT ''")
+        conn.commit()
+    if 'customer_salutation' not in existing:
+        conn.execute("ALTER TABLE quotes ADD COLUMN customer_salutation TEXT DEFAULT ''")
         conn.commit()
 
 
@@ -562,13 +566,14 @@ def create_quote(data, items):
     now = datetime.now().isoformat()
     cursor = conn.execute('''
         INSERT INTO quotes (quote_number, date, valid_until, country,
-            customer_name, customer_company, customer_street, customer_zip,
+            customer_salutation, customer_name, customer_company, customer_street, customer_zip,
             customer_city, customer_country_label, customer_phone, customer_email,
             customer_uid, project_name, project_description, creator_name, notes, custom_terms,
             created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         data['quote_number'], data['date'], data['valid_until'], data['country'],
+        data.get('customer_salutation', ''),
         data['customer_name'], data.get('customer_company', ''),
         data.get('customer_street', ''), data.get('customer_zip', ''),
         data.get('customer_city', ''), data.get('customer_country_label', ''),
@@ -623,13 +628,14 @@ def update_quote(quote_id, data, items):
     now = datetime.now().isoformat()
     conn.execute('''
         UPDATE quotes SET date=?, valid_until=?, country=?,
-            customer_name=?, customer_company=?, customer_street=?, customer_zip=?,
+            customer_salutation=?, customer_name=?, customer_company=?, customer_street=?, customer_zip=?,
             customer_city=?, customer_country_label=?, customer_phone=?, customer_email=?,
             customer_uid=?, project_name=?, project_description=?, creator_name=?, notes=?, custom_terms=?,
             updated_at=?
         WHERE id=?
     ''', (
         data['date'], data['valid_until'], data['country'],
+        data.get('customer_salutation', ''),
         data['customer_name'], data.get('customer_company', ''),
         data.get('customer_street', ''), data.get('customer_zip', ''),
         data.get('customer_city', ''), data.get('customer_country_label', ''),
