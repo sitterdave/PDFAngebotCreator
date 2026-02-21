@@ -208,7 +208,14 @@ def _migrate_product_template_columns(conn):
 
 
 def _migrate_product_template_data(conn):
-    """Update existing product templates with slot-specific data."""
+    """Update existing product templates with slot-specific data (runs only once)."""
+    # Skip if Wechselrichter already has slot titles (migration already ran)
+    already_done = conn.execute(
+        "SELECT id FROM product_templates WHERE title = 'Wechselrichter' AND title_1_slot != ''"
+    ).fetchone()
+    if already_done:
+        return
+
     # Update Wechselrichter with slot-specific models
     wr = conn.execute(
         "SELECT id FROM product_templates WHERE title LIKE '%echselrichter%' AND title NOT LIKE '%GoodWe%'"
