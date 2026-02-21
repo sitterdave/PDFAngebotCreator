@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const price = data ? (data.price || 0) : 0;
         const isCarport = data ? data.is_carport : false;
         const isOptional = data ? data.is_optional : false;
+        const isRichtpreis = data ? data.is_richtpreis : false;
 
         row.innerHTML = `
             <td class="align-middle text-center drag-handle" style="cursor: grab; color: #999;"><i class="bi bi-grip-vertical"></i></td>
@@ -57,6 +58,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 <input type="checkbox" name="item_is_optional_${idx}"
                        class="form-check-input item-optional" value="1"
                        ${isOptional ? 'checked' : ''}>
+            </td>
+            <td class="text-center">
+                <input type="checkbox" name="item_is_richtpreis_${idx}"
+                       class="form-check-input item-richtpreis" value="1"
+                       ${isRichtpreis ? 'checked' : ''}>
             </td>
             <td>
                 <button type="button" class="btn btn-sm btn-outline-danger remove-item-btn">
@@ -191,7 +197,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!hint) {
                 hint = document.createElement('tr');
                 hint.id = 'emptyItemsHint';
-                hint.innerHTML = '<td colspan="9" class="text-center text-muted py-3">'
+                hint.innerHTML = '<td colspan="10" class="text-center text-muted py-3">'
                     + '<i class="bi bi-info-circle me-1"></i>'
                     + 'Positionen über "Aus Vorlage" oder "Leere Position" hinzufügen'
                     + '</td>';
@@ -444,6 +450,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const priceEl = row.querySelector('[name="item_price_' + idx + '"]');
                 const carportEl = row.querySelector('[name="item_is_carport_' + idx + '"]');
                 const optionalEl = row.querySelector('[name="item_is_optional_' + idx + '"]');
+                const richtpreisEl = row.querySelector('[name="item_is_richtpreis_' + idx + '"]');
                 items.push({
                     title: titleEl ? titleEl.value : '',
                     description: descEl ? descEl.value : '',
@@ -451,6 +458,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     total_price: priceEl ? parseFloat(priceEl.value) || 0 : 0,
                     is_carport: carportEl ? (carportEl.checked ? 1 : 0) : 0,
                     is_optional: optionalEl ? (optionalEl.checked ? 1 : 0) : 0,
+                    is_richtpreis: richtpreisEl ? (richtpreisEl.checked ? 1 : 0) : 0,
                 });
             });
             // Write JSON into hidden field

@@ -423,7 +423,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
 
-                // 5. Elektromaterialien (wenn PV-Installation gewählt)
+                // 5. Elektromaterialien (wenn PV-Installation gewählt) - Richtpreis
                 if (installation && /PV|Anlage/i.test(installation)) {
                     var emat = findProduct(templates, 'Komponenten', 'Elektromaterial');
                     if (emat) {
@@ -432,7 +432,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             description: getDesc(emat, slotCount),
                             quantity: getQty(emat, slotCount),
                             price: getPrice(emat, slotCount),
-                            is_carport: false
+                            is_carport: false,
+                            is_richtpreis: true
                         });
                         added.push('Elektromaterialien');
                     }
@@ -455,7 +456,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
 
-                // 7. PV-Installation NUR wenn "PV" oder "Anlage" im Installation-Feld steht
+                // 7. PV-Installation NUR wenn "PV" oder "Anlage" im Installation-Feld steht - Richtpreis
                 if (installation && /PV|Anlage/i.test(installation)) {
                     var pvInstall = findProduct(templates, 'Installation', 'Installation der PV');
                     if (pvInstall) {
@@ -464,13 +465,14 @@ document.addEventListener('DOMContentLoaded', function() {
                             description: getDesc(pvInstall, slotCount),
                             quantity: getQty(pvInstall, slotCount),
                             price: getPrice(pvInstall, slotCount),
-                            is_carport: false
+                            is_carport: false,
+                            is_richtpreis: true
                         });
                         added.push('PV Installation');
                     }
                 }
 
-                // 8. Elektrische Anschlüsse (wenn PV-Installation gewählt)
+                // 8. Elektrische Anschlüsse (wenn PV-Installation gewählt) - Richtpreis
                 if (installation && /PV|Anlage/i.test(installation)) {
                     var elektro = findProduct(templates, 'Installation', 'Elektrische Anschlüsse');
                     if (elektro) {
@@ -479,7 +481,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             description: getDesc(elektro, slotCount),
                             quantity: getQty(elektro, slotCount),
                             price: getPrice(elektro, slotCount),
-                            is_carport: false
+                            is_carport: false,
+                            is_richtpreis: true
                         });
                         added.push('Elektrische Anschlüsse');
                     }

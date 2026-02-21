@@ -99,6 +99,7 @@ def init_db():
             total_price REAL NOT NULL DEFAULT 0,
             is_carport INTEGER NOT NULL DEFAULT 0,
             is_optional INTEGER NOT NULL DEFAULT 0,
+            is_richtpreis INTEGER NOT NULL DEFAULT 0,
             FOREIGN KEY (quote_id) REFERENCES quotes(id) ON DELETE CASCADE
         );
     ''')
@@ -159,6 +160,7 @@ def init_db():
     _migrate_product_template_columns(conn)
     _migrate_existing_data(conn)
     _migrate_product_template_data(conn)
+    _migrate_product_prices(conn)
 
     # Seed product templates if empty
     count = conn.execute("SELECT COUNT(*) as c FROM product_templates").fetchone()['c']
@@ -184,6 +186,9 @@ def _migrate_quote_items_columns(conn):
     existing = [col[1] for col in conn.execute("PRAGMA table_info(quote_items)").fetchall()]
     if 'is_optional' not in existing:
         conn.execute("ALTER TABLE quote_items ADD COLUMN is_optional INTEGER NOT NULL DEFAULT 0")
+        conn.commit()
+    if 'is_richtpreis' not in existing:
+        conn.execute("ALTER TABLE quote_items ADD COLUMN is_richtpreis INTEGER NOT NULL DEFAULT 0")
         conn.commit()
 
 
@@ -229,7 +234,7 @@ def _migrate_product_template_data(conn):
             title_2_slot = 'GoodWe GW8KN-ET PLUS+ Hybrid Wechselrichter',
             description_2_slot = 'Notstromfähig, lüfterlos und geräuscharm ausgestattet mit zwei MPP-Trackern (2 MPPT).',
             default_quantity = '1x',
-            price_1_slot = 1085.00,
+            price_1_slot = 1098.00,
             price_2_slot = 1211.00,
             price_3_plus = 'Preis auf Anfrage'
         WHERE id = ?""", (wr['id'],))
@@ -383,6 +388,30 @@ def _migrate_existing_data(conn):
     conn.commit()
 
 
+def _migrate_product_prices(conn):
+    """Update product template prices for Installation, Elektro, Elektromaterialien, Wechselrichter."""
+    # Only run once: check if Elektrische Anschlüsse already has a price
+    row = conn.execute(
+        "SELECT price_1_slot FROM product_templates WHERE title LIKE '%Elektrische Anschl%'"
+    ).fetchone()
+    if row and row['price_1_slot'] is not None and row['price_1_slot'] > 0:
+        return  # already migrated
+
+    # Elektrische Anschlüsse und Inbetriebnahme: 3450 €
+    conn.execute("""UPDATE product_templates SET price_1_slot = 3450.00, price_2_slot = 3450.00
+        WHERE title LIKE '%Elektrische Anschl%'""")
+    # Installation der PV-Anlage: 1350 €
+    conn.execute("""UPDATE product_templates SET price_1_slot = 1350.00, price_2_slot = 1350.00
+        WHERE title LIKE '%Installation der PV%'""")
+    # Elektromaterialien: 950 €
+    conn.execute("""UPDATE product_templates SET price_1_slot = 950.00, price_2_slot = 950.00
+        WHERE title LIKE '%Elektromaterial%'""")
+    # Wechselrichter 1-Slot: 1098 €
+    conn.execute("""UPDATE product_templates SET price_1_slot = 1098.00
+        WHERE title = 'Wechselrichter' AND category = 'Komponenten'""")
+    conn.commit()
+
+
 def _seed_product_templates(conn):
     """Insert default product templates based on the carport/solar pricing.
 
@@ -455,7 +484,7 @@ def _seed_product_templates(conn):
         ('Installation', 'Installation der PV-Anlage',
          'Professionelle Installation und Verschaltung der PV-Module nach höchsten Standards.',
          '', '', '', '', '', '', '', '', '', '',
-         None, None, 'Preis auf Anfrage', 0, 21),
+         1350.00, 1350.00, 'Preis auf Anfrage', 0, 21),
 
         ('Installation', 'Elektrische Anschlüsse und Inbetriebnahme',
          'Installation und Anschluss des Wechselrichters, des Batteriespeichers, '
@@ -463,7 +492,7 @@ def _seed_product_templates(conn):
          'Dies beinhaltet auch die Inbetriebnahme der Anlage und die offizielle Meldung '
          'beim zuständigen Energieversorger.',
          '', '', '', '', '', '', '', '', '', '',
-         None, None, 'Preis auf Anfrage', 0, 22),
+         3450.00, 3450.00, 'Preis auf Anfrage', 0, 22),
 
         ('Installation', 'Montage und Anschlussarbeiten',
          'Professionelle Installation und Verschaltung der PV-Module nach höchsten Standards, '
@@ -489,7 +518,7 @@ def _seed_product_templates(conn):
          'Notstromfähig, lüfterlos und geräuscharm ausgestattet mit zwei MPP-Trackern (2 MPPT).',
          '',
          '', '', '',
-         1085.00, 1211.00, 'Preis auf Anfrage', 0, 31),
+         1098.00, 1211.00, 'Preis auf Anfrage', 0, 31),
 
         # Batteriespeicher: 3 separate options (same price for all slots)
         ('Komponenten', 'Pylontech Force H2 Batteriespeicher 7,1kWh',
@@ -512,7 +541,7 @@ def _seed_product_templates(conn):
          'für den PV-Abgangsverteiler (Fehlerstromschutzschalter, Leitungsschutzschalter, '
          'Verdrahtungsmaterial).',
          '', '', '', '', '', '', '', '', '', '',
-         None, None, 'Preis auf Anfrage', 0, 35),
+         950.00, 950.00, 'Preis auf Anfrage', 0, 35),
 
         # ===================== LIEFERUNG =====================
         ('Lieferung', 'Lieferung der angebotenen Positionen',
@@ -597,15 +626,16 @@ def create_quote(data, items):
 
     for i, item in enumerate(items):
         conn.execute('''
-            INSERT INTO quote_items (quote_id, position, title, description, quantity, total_price, is_carport, is_optional)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO quote_items (quote_id, position, title, description, quantity, total_price, is_carport, is_optional, is_richtpreis)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             quote_id, i + 1, item.get('title', ''),
             item.get('description', ''),
             item.get('quantity', '1x'),
             float(item.get('total_price', 0) or 0),
             int(item.get('is_carport', 0)),
-            int(item.get('is_optional', 0))
+            int(item.get('is_optional', 0)),
+            int(item.get('is_richtpreis', 0))
         ))
 
     conn.commit()
@@ -660,15 +690,16 @@ def update_quote(quote_id, data, items):
     conn.execute("DELETE FROM quote_items WHERE quote_id = ?", (quote_id,))
     for i, item in enumerate(items):
         conn.execute('''
-            INSERT INTO quote_items (quote_id, position, title, description, quantity, total_price, is_carport, is_optional)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO quote_items (quote_id, position, title, description, quantity, total_price, is_carport, is_optional, is_richtpreis)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             quote_id, i + 1, item.get('title', ''),
             item.get('description', ''),
             item.get('quantity', '1x'),
             float(item.get('total_price', 0) or 0),
             int(item.get('is_carport', 0)),
-            int(item.get('is_optional', 0))
+            int(item.get('is_optional', 0)),
+            int(item.get('is_richtpreis', 0))
         ))
 
     conn.commit()

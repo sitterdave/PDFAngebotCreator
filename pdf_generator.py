@@ -548,17 +548,30 @@ def _draw_items_table(pdf, totals, country):
             pdf.cell(col_menge, 5, str(quantity), align='C')
 
         # Gesamtkosten (centered vertically, right-aligned)
+        is_richtpreis = int(item.get('is_richtpreis', 0) or 0)
         pdf.set_font(f, 'B', 9)
         pdf.set_text_color(*BLACK)
         pdf.set_xy(x_start + col_pos + col_desc + col_menge, pos_y)
         if price == 0:
             pdf.set_font(f, '', 7)
             pdf.cell(col_total - 3, 5, 'nach Besichtigung', align='R')
+        elif is_richtpreis:
+            pdf.cell(col_total - 3, 5, fmt(price) + ' \u20ac *', align='R')
         else:
             pdf.cell(col_total - 3, 5, fmt(price) + ' \u20ac', align='R')
 
         pdf.set_y(row_y + row_h)
         row_idx += 1
+
+    # --- Richtpreis footnote ---
+    has_richtpreis = any(int(i.get('is_richtpreis', 0) or 0) for i in totals['positions'])
+    if has_richtpreis:
+        pdf.ln(2)
+        pdf.set_font(f, 'I', 7)
+        pdf.set_text_color(*GRAY)
+        pdf.set_x(x_start)
+        pdf.cell(0, 4, '* Richtpreis \u2013 Endg\u00fcltiger Preis wird nach technischer Besichtigung festgelegt.', align='L')
+        pdf.ln(2)
 
     # --- Optional items section ---
     if optional_items:
@@ -644,12 +657,15 @@ def _draw_items_table(pdf, totals, country):
                 pdf.cell(col_menge, 5, str(quantity), align='C')
 
             # Gesamtkosten
+            is_richtpreis = int(item.get('is_richtpreis', 0) or 0)
             pdf.set_font(f, 'B', 9)
             pdf.set_text_color(*BLACK)
             pdf.set_xy(x_start + col_pos + col_desc + col_menge, pos_y)
             if price == 0:
                 pdf.set_font(f, '', 7)
                 pdf.cell(col_total - 3, 5, 'nach Besichtigung', align='R')
+            elif is_richtpreis:
+                pdf.cell(col_total - 3, 5, fmt(price) + ' \u20ac *', align='R')
             else:
                 pdf.cell(col_total - 3, 5, fmt(price) + ' \u20ac', align='R')
 

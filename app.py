@@ -601,6 +601,7 @@ def parse_items_from_form(form):
                         'total_price': float(item.get('total_price', 0) or 0),
                         'is_carport': int(item.get('is_carport', 0) or 0),
                         'is_optional': int(item.get('is_optional', 0) or 0),
+                        'is_richtpreis': int(item.get('is_richtpreis', 0) or 0),
                     })
             if items:
                 return items
@@ -627,6 +628,7 @@ def parse_items_from_form(form):
                 'total_price': float(form.get(f'item_price_{i}', 0) or 0),
                 'is_carport': 1 if form.get(f'item_is_carport_{i}') else 0,
                 'is_optional': 1 if form.get(f'item_is_optional_{i}') else 0,
+                'is_richtpreis': 1 if form.get(f'item_is_richtpreis_{i}') else 0,
             })
     return items
 
