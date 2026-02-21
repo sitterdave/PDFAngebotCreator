@@ -9,7 +9,7 @@ except ImportError:
 from datetime import datetime, timedelta
 from flask import (
     Flask, render_template, request, redirect, url_for,
-    flash, send_file, jsonify
+    flash, send_file, jsonify, session
 )
 from werkzeug.utils import secure_filename
 from models import (
@@ -23,7 +23,8 @@ from pdf_generator import generate_quote_pdf
 import io
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24)
+app.secret_key = os.environ.get('SECRET_KEY', 'change-me-in-production-xyz789')
+app.config['APP_PASSWORD'] = os.environ.get('APP_PASSWORD', 'stromsparen2024')
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'static', 'uploads')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'}
@@ -38,6 +39,31 @@ def allowed_file(filename):
 @app.before_request
 def before_request():
     init_db()
+    # Passwortschutz: alle Seiten außer Login
+    if request.endpoint not in ('login', 'logout', 'static') and not session.get('authenticated'):
+        return redirect(url_for('login'))
+
+
+# --- Login ---
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        password = request.form.get('password', '')
+        if password == app.config['APP_PASSWORD']:
+            session['authenticated'] = True
+            flash('Erfolgreich angemeldet.', 'success')
+            return redirect(url_for('index'))
+        else:
+            flash('Falsches Passwort.', 'error')
+    return render_template('login.html')
+
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    flash('Abgemeldet.', 'success')
+    return redirect(url_for('login'))
 
 
 # --- Dashboard ---
