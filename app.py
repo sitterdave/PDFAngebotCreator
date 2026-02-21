@@ -2,7 +2,10 @@ import os
 import json
 import email
 import re
-import olefile
+try:
+    import olefile
+except ImportError:
+    olefile = None
 from datetime import datetime, timedelta
 from flask import (
     Flask, render_template, request, redirect, url_for,
@@ -357,6 +360,8 @@ def api_parse_email():
 
 def _parse_msg_file(raw_bytes):
     """Extract body text from Outlook .msg file using olefile."""
+    if olefile is None:
+        return ''
     import io
     try:
         ole = olefile.OleFileIO(io.BytesIO(raw_bytes))
