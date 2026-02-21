@@ -8,13 +8,25 @@
 </h2>
 
 {% if is_new %}
-<!-- E-Mail Import Drop-Zone -->
+<!-- E-Mail Import -->
 <div class="card mb-4 border-primary" id="emailImportCard">
-    <div class="card-body">
-        <div id="emailDropZone" class="text-center py-4" style="border: 2px dashed #0d6efd; border-radius: 8px; cursor: pointer; transition: all 0.2s;">
-            <i class="bi bi-envelope-arrow-down fs-1 text-primary"></i>
-            <p class="mb-1 mt-2 fw-bold text-primary">Carport-Anfrage E-Mail hier reinziehen oder einfügen</p>
-            <p class="text-muted small mb-0">Drag &amp; Drop oder <kbd>Strg+V</kbd> zum Einfügen des E-Mail-Textes</p>
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-envelope-arrow-down"></i> Anfrage-E-Mail importieren</span>
+        <button type="button" class="btn btn-sm btn-light" id="toggleImportBtn">
+            <i class="bi bi-chevron-down"></i>
+        </button>
+    </div>
+    <div class="card-body" id="emailImportBody">
+        <p class="text-muted mb-2">E-Mail-Text hier einfügen und auf <strong>Importieren</strong> klicken:</p>
+        <textarea id="emailTextArea" class="form-control mb-2" rows="6"
+                  placeholder="Hier den kompletten E-Mail-Text einfügen (Strg+V)..."></textarea>
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-primary" id="emailImportBtn">
+                <i class="bi bi-magic"></i> Importieren
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="emailClearBtn">
+                <i class="bi bi-x-lg"></i> Leeren
+            </button>
         </div>
         <div id="emailParseResult" class="mt-2" style="display: none;"></div>
     </div>

@@ -1,69 +1,46 @@
 /**
- * E-Mail Import: Drag & Drop / Paste für Carport-Anfrage E-Mails
+ * E-Mail Import: Textarea + Button für Carport-Anfrage E-Mails
  * Parst den E-Mail-Text und füllt das Angebotsformular automatisch aus.
  */
 document.addEventListener('DOMContentLoaded', function() {
-    var dropZone = document.getElementById('emailDropZone');
+    var textArea = document.getElementById('emailTextArea');
+    var importBtn = document.getElementById('emailImportBtn');
+    var clearBtn = document.getElementById('emailClearBtn');
     var resultDiv = document.getElementById('emailParseResult');
-    if (!dropZone) return;
+    var toggleBtn = document.getElementById('toggleImportBtn');
+    var importBody = document.getElementById('emailImportBody');
+    if (!textArea || !importBtn) return;
 
-    // --- Drag & Drop ---
-    dropZone.addEventListener('dragover', function(e) {
-        e.preventDefault();
-        dropZone.style.borderColor = '#198754';
-        dropZone.style.backgroundColor = '#f0fff4';
-    });
+    // Toggle ein-/ausklappen
+    if (toggleBtn && importBody) {
+        toggleBtn.addEventListener('click', function() {
+            var hidden = importBody.style.display === 'none';
+            importBody.style.display = hidden ? '' : 'none';
+            toggleBtn.querySelector('i').className = hidden ? 'bi bi-chevron-up' : 'bi bi-chevron-down';
+        });
+    }
 
-    dropZone.addEventListener('dragleave', function(e) {
-        e.preventDefault();
-        dropZone.style.borderColor = '#0d6efd';
-        dropZone.style.backgroundColor = '';
-    });
-
-    dropZone.addEventListener('drop', function(e) {
-        e.preventDefault();
-        dropZone.style.borderColor = '#0d6efd';
-        dropZone.style.backgroundColor = '';
-
-        var text = e.dataTransfer.getData('text/plain') || e.dataTransfer.getData('text');
-        if (text) {
-            parseAndFill(text);
+    // Import-Button
+    importBtn.addEventListener('click', function() {
+        var text = textArea.value.trim();
+        if (!text) {
+            showResult('Bitte zuerst den E-Mail-Text in das Feld einfügen.', 'warning');
+            return;
         }
+        parseAndFill(text);
     });
 
-    // --- Paste (Strg+V) auf der Drop-Zone ---
-    dropZone.setAttribute('tabindex', '0');
-    dropZone.addEventListener('click', function() {
-        dropZone.focus();
-    });
-    dropZone.addEventListener('paste', function(e) {
-        e.preventDefault();
-        var text = (e.clipboardData || window.clipboardData).getData('text');
-        if (text) {
-            parseAndFill(text);
-        }
-    });
-
-    // --- Auch globaler Paste wenn Drop-Zone sichtbar ---
-    document.addEventListener('paste', function(e) {
-        var card = document.getElementById('emailImportCard');
-        if (!card || card.style.display === 'none') return;
-        // Nicht abfangen wenn User in einem Input/Textarea tippt
-        var tag = (e.target.tagName || '').toLowerCase();
-        if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
-
-        e.preventDefault();
-        var text = (e.clipboardData || window.clipboardData).getData('text');
-        if (text) {
-            parseAndFill(text);
-        }
+    // Leeren-Button
+    clearBtn.addEventListener('click', function() {
+        textArea.value = '';
+        resultDiv.style.display = 'none';
     });
 
     function parseAndFill(text) {
         var data = parseEmail(text);
 
         if (!data.name) {
-            showResult('Konnte keine Kundendaten erkennen. Bitte den E-Mail-Text als Text einfügen.', 'warning');
+            showResult('Konnte keine Kundendaten erkennen. Ist der E-Mail-Text vollständig?', 'warning');
             return;
         }
 
@@ -86,7 +63,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 setVal('customer_country_label', 'Deutschland');
             } else {
                 if (countrySelect) countrySelect.value = 'AT';
-                setVal('customer_country_label', data.country);
+                // Austria -> Österreich
+                var label = data.country;
+                if (countryLower === 'austria') label = 'Österreich';
+                setVal('customer_country_label', label);
             }
             // Trigger change für MwSt-Update
             if (countrySelect) countrySelect.dispatchEvent(new Event('change'));
@@ -108,45 +88,36 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Erfolgs-Anzeige
-        var summary = '<strong>' + escapeHtml(data.name) + '</strong>';
-        if (data.city) summary += ', ' + escapeHtml(data.city);
-        if (data.carportVariante) summary += ' &mdash; ' + escapeHtml(data.carportVariante);
+        var parts = ['<strong>' + escapeHtml(data.name) + '</strong>'];
+        if (data.city) parts.push(escapeHtml(data.city));
+        if (data.carportVariante) parts.push(escapeHtml(data.carportVariante));
 
-        showResult('Daten importiert: ' + summary, 'success');
+        showResult('<i class="bi bi-check-circle me-1"></i> Daten importiert: ' + parts.join(' &mdash; '), 'success');
 
-        // Drop-Zone minimieren
-        dropZone.innerHTML = '<i class="bi bi-check-circle text-success fs-4"></i> <span class="text-success fw-bold">Importiert!</span>'
-            + ' <button type="button" class="btn btn-sm btn-outline-secondary ms-2" id="resetImportBtn">Nochmal</button>';
-
-        document.getElementById('resetImportBtn').addEventListener('click', function() {
-            dropZone.innerHTML = '<i class="bi bi-envelope-arrow-down fs-1 text-primary"></i>'
-                + '<p class="mb-1 mt-2 fw-bold text-primary">Carport-Anfrage E-Mail hier reinziehen oder einfügen</p>'
-                + '<p class="text-muted small mb-0">Drag &amp; Drop oder <kbd>Strg+V</kbd> zum Einfügen des E-Mail-Textes</p>';
+        // Textarea zuklappen
+        textArea.style.display = 'none';
+        importBtn.style.display = 'none';
+        clearBtn.textContent = 'Nochmal importieren';
+        clearBtn.className = 'btn btn-outline-primary btn-sm';
+        clearBtn.onclick = function() {
+            textArea.style.display = '';
+            textArea.value = '';
+            importBtn.style.display = '';
+            clearBtn.textContent = 'Leeren';
+            clearBtn.className = 'btn btn-outline-secondary btn-sm';
             resultDiv.style.display = 'none';
-        });
+            clearBtn.onclick = function() {
+                textArea.value = '';
+                resultDiv.style.display = 'none';
+            };
+        };
     }
 
     function parseEmail(text) {
         var data = {};
         var lines = text.split(/\r?\n/).map(function(l) { return l.trim(); });
 
-        // Hilfsfunktion: Wert nach einem Label finden
-        function findValue(label) {
-            for (var i = 0; i < lines.length; i++) {
-                if (lines[i].toLowerCase() === label.toLowerCase() ||
-                    lines[i].toLowerCase().replace(/[:\-\/]/g, '').trim() === label.toLowerCase().replace(/[:\-\/]/g, '').trim()) {
-                    // Nächste nicht-leere Zeile ist der Wert
-                    for (var j = i + 1; j < lines.length && j <= i + 3; j++) {
-                        if (lines[j] && !isLabel(lines[j])) {
-                            return lines[j];
-                        }
-                    }
-                }
-            }
-            return '';
-        }
-
-        // Bekannte Labels (um zu erkennen was ein Label ist und was ein Wert)
+        // Bekannte Labels
         var knownLabels = [
             'neue carport-anfrage', 'kundendaten', 'name', 'e-mail', 'telefon',
             'firma', 'uid-nummer', 'adresse', 'straße/nr.', 'straße/nr', 'plz', 'ort', 'land',
@@ -155,11 +126,31 @@ document.addEventListener('DOMContentLoaded', function() {
             'preisübersicht', 'gesamtbetrag', 'hinweis'
         ];
 
+        function normalize(s) {
+            return s.toLowerCase().replace(/[:\-\/\.]/g, '').replace(/\s+/g, ' ').trim();
+        }
+
         function isLabel(line) {
-            var l = line.toLowerCase().replace(/[:\-\/\.]/g, '').trim();
+            var n = normalize(line);
             return knownLabels.some(function(lab) {
-                return l === lab.replace(/[:\-\/\.]/g, '').trim();
+                return n === normalize(lab);
             });
+        }
+
+        // Wert nach einem Label finden
+        function findValue(label) {
+            var normLabel = normalize(label);
+            for (var i = 0; i < lines.length; i++) {
+                if (normalize(lines[i]) === normLabel) {
+                    // Nächste nicht-leere, nicht-Label Zeile ist der Wert
+                    for (var j = i + 1; j < lines.length && j <= i + 3; j++) {
+                        if (lines[j] && !isLabel(lines[j])) {
+                            return lines[j];
+                        }
+                    }
+                }
+            }
+            return '';
         }
 
         data.name = findValue('Name');
