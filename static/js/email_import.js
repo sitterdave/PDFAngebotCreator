@@ -309,9 +309,14 @@ document.addEventListener('DOMContentLoaded', function() {
         // Stellplätze ermitteln (1, 2, oder 3)
         var stellplaetze = data.stellplaetze || data.carport_stellplaetze || '';
         var slotCount = '2'; // Default
-        if (/1\s*Stellpl/i.test(stellplaetze)) slotCount = '1';
-        else if (/3/i.test(stellplaetze)) slotCount = '3';
-        else if (/2/i.test(stellplaetze)) slotCount = '2';
+        // Zahl direkt aus dem Text extrahieren ("1 Stellplatz", "2 Stellplätze", "3+")
+        var slotMatch = stellplaetze.match(/(\d)/);
+        if (slotMatch) {
+            var n = parseInt(slotMatch[1], 10);
+            if (n === 1) slotCount = '1';
+            else if (n >= 3) slotCount = '3';
+            else slotCount = '2';
+        }
 
         // Stellplatz-Auswahl im Modal setzen (für spätere manuelle Nacharbeit)
         var slotInput = document.getElementById('slotCount');
@@ -320,6 +325,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Modell-Nummer aus Variante extrahieren (z.B. "Modell 05", "Modell S", "Modell S2")
         var modellMatch = variante.match(/Modell\s+(\S+)/i);
         var modellNr = modellMatch ? modellMatch[1] : '';
+
+        // Ist es ein S-Modell? (S oder S2)
+        var isSModell = /^S\d?$/i.test(modellNr);
 
         // Installation aus E-Mail
         var installation = data.installation || data.carport_installation || '';
@@ -360,22 +368,24 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
 
-                // 2. Installation (Carport Installation + PV Installation)
+                // 2. Installation - nur hinzufügen wenn in Email explizit erwähnt
                 if (installation) {
-                    // Carport Installation
-                    var carportInstall = findProduct(templates, 'Installation', 'Carport Installation');
-                    if (carportInstall) {
-                        window.addItemRow({
-                            title: getTitle(carportInstall, slotCount),
-                            description: getDesc(carportInstall, slotCount),
-                            quantity: getQty(carportInstall, slotCount),
-                            price: getPrice(carportInstall, slotCount),
-                            is_carport: true
-                        });
-                        added.push('Carport Installation');
+                    // Carport Installation NUR wenn "Carport" im Installation-Feld steht
+                    if (/Carport/i.test(installation)) {
+                        var carportInstall = findProduct(templates, 'Installation', 'Carport Installation');
+                        if (carportInstall) {
+                            window.addItemRow({
+                                title: getTitle(carportInstall, slotCount),
+                                description: getDesc(carportInstall, slotCount),
+                                quantity: getQty(carportInstall, slotCount),
+                                price: getPrice(carportInstall, slotCount),
+                                is_carport: true
+                            });
+                            added.push('Carport Installation');
+                        }
                     }
 
-                    // PV-Installation wenn explizit erwähnt
+                    // PV-Installation NUR wenn "PV" oder "Anlage" im Installation-Feld steht
                     if (/PV|Anlage/i.test(installation)) {
                         var pvInstall = findProduct(templates, 'Installation', 'Installation der PV');
                         if (pvInstall) {
@@ -391,10 +401,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
 
-                // 3. PV-Module (können "PV-Module", "Ja Solar", "Solarmodule" etc. heißen)
-                if (module && /PV.?Modul|Modul/i.test(module)) {
-                    var pvMod = findProduct(templates, 'Komponenten', 'PV-Module')
-                        || findProduct(templates, 'Komponenten', 'Solar')
+                // 3. PV-Module - hinzufügen wenn Module-Feld nicht leer/nein ist
+                var hasModules = module && !/^(nein|keine|-)$/i.test(module.trim());
+                if (hasModules) {
+                    var pvMod = findProduct(templates, 'Komponenten', 'Solar')
+                        || findProduct(templates, 'Komponenten', 'PV-Module')
                         || findProduct(templates, 'Komponenten', 'Modul');
                     if (pvMod) {
                         window.addItemRow({
@@ -408,9 +419,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
 
-                // 4. Wechselrichter
-                if (module && /Wechselrichter/i.test(module)) {
-                    var wr = findProduct(templates, 'Komponenten', 'Wechselrichter');
+                // 4. Wechselrichter - hinzufügen wenn PV-Module vorhanden
+                if (hasModules) {
+                    var wr = findProduct(templates, 'Komponenten', 'Wechselrichter')
+                        || findProduct(templates, 'Komponenten', 'GoodWe');
                     if (wr) {
                         window.addItemRow({
                             title: getTitle(wr, slotCount),
@@ -423,7 +435,25 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
 
-                // 5. Elektrische Anschlüsse (wenn Installation gewählt)
+                // 5. Batteriespeicher (wenn in Email ausgewählt)
+                var hasBatterie = batterie && !/^(nein|keine|-)$/i.test(batterie.trim());
+                if (hasBatterie) {
+                    var bat = findProduct(templates, 'Komponenten', 'Batteriespeicher')
+                        || findProduct(templates, 'Komponenten', 'Pylontech')
+                        || findProduct(templates, 'Komponenten', 'Huawei');
+                    if (bat) {
+                        window.addItemRow({
+                            title: getTitle(bat, slotCount),
+                            description: getDesc(bat, slotCount),
+                            quantity: getQty(bat, slotCount),
+                            price: getPrice(bat, slotCount),
+                            is_carport: false
+                        });
+                        added.push('Batteriespeicher');
+                    }
+                }
+
+                // 6. Elektrische Anschlüsse (wenn PV-Installation gewählt)
                 if (installation && /PV|Anlage/i.test(installation)) {
                     var elektro = findProduct(templates, 'Installation', 'Elektrische Anschlüsse');
                     if (elektro) {
@@ -438,7 +468,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
 
-                // 6. Elektromaterialien (wenn Installation gewählt)
+                // 7. Elektromaterialien (wenn PV-Installation gewählt)
                 if (installation && /PV|Anlage/i.test(installation)) {
                     var emat = findProduct(templates, 'Komponenten', 'Elektromaterial');
                     if (emat) {
@@ -453,7 +483,53 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
 
-                // 7. Lieferung immer hinzufügen
+                // 8. Montagesystem / Dichtungssystem (OPTIONAL)
+                if (isSModell) {
+                    // S-Modell: nur Dichtungssystem für S-Modelle als optional
+                    var dichtung = findProduct(templates, null, 'Dichtungssystem');
+                    if (dichtung) {
+                        window.addItemRow({
+                            title: getTitle(dichtung, slotCount),
+                            description: getDesc(dichtung, slotCount),
+                            quantity: getQty(dichtung, slotCount),
+                            price: getPrice(dichtung, slotCount),
+                            is_carport: false,
+                            is_optional: true
+                        });
+                        added.push('Dichtungssystem (optional)');
+                    }
+                } else {
+                    // Nicht S-Modell: beide Montagesysteme als optional
+                    var montageWD = findProduct(templates, null, 'Montagesystem Wasserdicht')
+                        || findProduct(templates, null, 'Montagesystem wasserdicht');
+                    if (montageWD) {
+                        window.addItemRow({
+                            title: getTitle(montageWD, slotCount),
+                            description: getDesc(montageWD, slotCount),
+                            quantity: getQty(montageWD, slotCount),
+                            price: getPrice(montageWD, slotCount),
+                            is_carport: false,
+                            is_optional: true
+                        });
+                        added.push('PV-Montagesystem Wasserdicht (optional)');
+                    }
+
+                    var montageStd = findProduct(templates, null, 'Montagesystem Standard')
+                        || findProduct(templates, null, 'Montagesystem standard');
+                    if (montageStd) {
+                        window.addItemRow({
+                            title: getTitle(montageStd, slotCount),
+                            description: getDesc(montageStd, slotCount),
+                            quantity: getQty(montageStd, slotCount),
+                            price: getPrice(montageStd, slotCount),
+                            is_carport: false,
+                            is_optional: true
+                        });
+                        added.push('PV-Montagesystem Standard (optional)');
+                    }
+                }
+
+                // 9. Lieferung immer hinzufügen
                 var lieferung = findProduct(templates, 'Lieferung', 'Lieferung');
                 if (lieferung) {
                     window.addItemRow({
@@ -478,25 +554,38 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Produkt-Template nach Kategorie und Titel-Fragment finden
+    // category kann null sein um alle Kategorien zu durchsuchen
     function findProduct(templates, category, titleFragment) {
         var frag = titleFragment.toLowerCase();
         return templates.find(function(t) {
-            return t.category === category && t.title.toLowerCase().indexOf(frag) >= 0;
+            var catMatch = category === null || t.category === category;
+            return catMatch && t.title.toLowerCase().indexOf(frag) >= 0;
         }) || null;
     }
 
     // Preis für Stellplatz-Anzahl ermitteln
     function getPrice(template, slots) {
-        if (slots === '1' && template.price_1_slot != null) return template.price_1_slot;
-        if (slots === '2' && template.price_2_slot != null) return template.price_2_slot;
-        if (slots === '3' && template.price_3_plus) {
-            var p = parseFloat(template.price_3_plus);
-            if (!isNaN(p)) return p;
+        // Exakt den Preis für die gewählte Stellplatz-Anzahl verwenden
+        if (slots === '1') {
+            if (template.price_1_slot != null) return template.price_1_slot;
+        } else if (slots === '2') {
+            if (template.price_2_slot != null) return template.price_2_slot;
+        } else if (slots === '3') {
+            if (template.price_3_plus) {
+                var p = parseFloat(template.price_3_plus);
+                if (!isNaN(p)) return p;
+            }
         }
-        // Fallback
-        if (template.price_1_slot != null) return template.price_1_slot;
-        if (template.price_2_slot != null) return template.price_2_slot;
-        return 0;
+        // Fallback: nur wenn der spezifische Slot-Preis nicht gesetzt ist
+        // Reihenfolge: gleicher Slot > nächster Slot > 0
+        if (slots === '1') {
+            return (template.price_2_slot != null) ? template.price_2_slot : 0;
+        } else if (slots === '2') {
+            return (template.price_1_slot != null) ? template.price_1_slot : 0;
+        } else {
+            return (template.price_2_slot != null) ? template.price_2_slot
+                 : (template.price_1_slot != null) ? template.price_1_slot : 0;
+        }
     }
 
     // Titel für Stellplatz-Anzahl
