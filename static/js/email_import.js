@@ -437,7 +437,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
 
                 // 5. Batteriespeicher (wenn in Email ausgewählt)
-                var hasBatterie = batterie && !/^(nein|keine|-)$/i.test(batterie.trim());
+                var hasBatterie = batterie && !/^(nein|keine|nicht angegeben|-)$/i.test(batterie.trim());
                 if (hasBatterie) {
                     var bat = findProduct(templates, 'Komponenten', 'Batteriespeicher')
                         || findProduct(templates, 'Komponenten', 'Pylontech')
