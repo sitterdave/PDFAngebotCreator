@@ -2,6 +2,7 @@ import os
 import json
 import email
 import re
+import olefile
 from datetime import datetime, timedelta
 from flask import (
     Flask, render_template, request, redirect, url_for,
@@ -329,46 +330,102 @@ def api_products():
 
 @app.route('/api/parse-email', methods=['POST'])
 def api_parse_email():
-    """Parse an uploaded .eml file or plain text and extract customer data."""
-    # Check if a file was uploaded (.eml drag & drop)
+    """Parse an uploaded .eml/.msg file or plain text and extract customer data."""
+    text = ''
+
     if 'file' in request.files:
         f = request.files['file']
+        filename = f.filename or ''
         raw = f.read()
-        # Try to parse as .eml
-        msg = email.message_from_bytes(raw)
-        body = ''
-        if msg.is_multipart():
-            for part in msg.walk():
-                ct = part.get_content_type()
-                if ct == 'text/plain':
-                    charset = part.get_content_charset() or 'utf-8'
-                    body = part.get_payload(decode=True).decode(charset, errors='replace')
-                    break
-                elif ct == 'text/html' and not body:
-                    charset = part.get_content_charset() or 'utf-8'
-                    html_body = part.get_payload(decode=True).decode(charset, errors='replace')
-                    body = re.sub(r'<br\s*/?>', '\n', html_body)
-                    body = re.sub(r'<[^>]+>', '', body)
+
+        if filename.lower().endswith('.msg'):
+            # Outlook .msg format (OLE2)
+            text = _parse_msg_file(raw)
         else:
-            charset = msg.get_content_charset() or 'utf-8'
-            payload = msg.get_payload(decode=True)
-            if payload:
-                body = payload.decode(charset, errors='replace')
-                if msg.get_content_type() == 'text/html':
-                    body = re.sub(r'<br\s*/?>', '\n', body)
-                    body = re.sub(r'<[^>]+>', '', body)
-        text = body
+            # .eml format (RFC822)
+            text = _parse_eml_file(raw)
     else:
-        # Plain text in request body
         text = request.get_data(as_text=True)
 
     if not text:
         return jsonify({'error': 'Kein Text gefunden'}), 400
 
-    # Parse fields from text
     data = _parse_email_text(text)
     data['raw_text'] = text
     return jsonify(data)
+
+
+def _parse_msg_file(raw_bytes):
+    """Extract body text from Outlook .msg file using olefile."""
+    import io
+    try:
+        ole = olefile.OleFileIO(io.BytesIO(raw_bytes))
+    except Exception:
+        return ''
+
+    body = ''
+
+    # Try plain text body first
+    for stream_name in [
+        '__substg1.0_1000001F',  # Body (Unicode)
+        '__substg1.0_1000001E',  # Body (ANSI)
+    ]:
+        if ole.exists(stream_name):
+            data = ole.openstream(stream_name).read()
+            if stream_name.endswith('1F'):
+                body = data.decode('utf-16-le', errors='replace')
+            else:
+                body = data.decode('utf-8', errors='replace')
+            break
+
+    # Fallback: try HTML body
+    if not body.strip():
+        for stream_name in [
+            '__substg1.0_10130102',  # HTML body
+            '__substg1.0_1013001F',
+            '__substg1.0_1013001E',
+        ]:
+            if ole.exists(stream_name):
+                data = ole.openstream(stream_name).read()
+                if stream_name.endswith('1F'):
+                    html = data.decode('utf-16-le', errors='replace')
+                elif stream_name.endswith('1E'):
+                    html = data.decode('utf-8', errors='replace')
+                else:
+                    html = data.decode('utf-8', errors='replace')
+                body = re.sub(r'<br\s*/?>', '\n', html)
+                body = re.sub(r'<[^>]+>', '', body)
+                break
+
+    ole.close()
+    return body
+
+
+def _parse_eml_file(raw_bytes):
+    """Extract body text from .eml (RFC822) file."""
+    msg = email.message_from_bytes(raw_bytes)
+    body = ''
+    if msg.is_multipart():
+        for part in msg.walk():
+            ct = part.get_content_type()
+            if ct == 'text/plain':
+                charset = part.get_content_charset() or 'utf-8'
+                body = part.get_payload(decode=True).decode(charset, errors='replace')
+                break
+            elif ct == 'text/html' and not body:
+                charset = part.get_content_charset() or 'utf-8'
+                html_body = part.get_payload(decode=True).decode(charset, errors='replace')
+                body = re.sub(r'<br\s*/?>', '\n', html_body)
+                body = re.sub(r'<[^>]+>', '', body)
+    else:
+        charset = msg.get_content_charset() or 'utf-8'
+        payload = msg.get_payload(decode=True)
+        if payload:
+            body = payload.decode(charset, errors='replace')
+            if msg.get_content_type() == 'text/html':
+                body = re.sub(r'<br\s*/?>', '\n', body)
+                body = re.sub(r'<[^>]+>', '', body)
+    return body
 
 
 def _parse_email_text(text):
