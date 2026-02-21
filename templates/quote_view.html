@@ -246,8 +246,22 @@
 
 {% if quote.customer_email %}
 <script>
+// Prüfen ob ein S-Modell Produkt im Angebot ist
+var hasSModell = false;
+{% for item in totals.positions %}
+{% if 'Modell S' in item.title %}
+hasSModell = true;
+{% endif %}
+{% endfor %}
+
 document.getElementById('mailto-btn').addEventListener('click', function(e) {
     e.preventDefault();
+
+    // Wenn S-Modell erkannt: automatisch S-Modell Vorlage verwenden
+    if (hasSModell) {
+        document.getElementById('mailto-s-modell-btn').click();
+        return;
+    }
 
     var email = {{ quote.customer_email|tojson }};
     var customerName = {{ quote.customer_name|tojson }};
