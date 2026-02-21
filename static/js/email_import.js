@@ -404,8 +404,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 // 3. PV-Module - hinzufügen wenn Module-Feld nicht leer/nein ist
                 var hasModules = module && !/^(nein|keine|-)$/i.test(module.trim());
                 if (hasModules) {
-                    var pvMod = findProduct(templates, 'Komponenten', 'Solar')
-                        || findProduct(templates, 'Komponenten', 'PV-Module')
+                    var pvMod = findProduct(templates, 'Komponenten', 'PV Modul')
+                        || findProduct(templates, 'Komponenten', 'PV-Modul')
+                        || findProduct(templates, 'Komponenten', 'Solar')
                         || findProduct(templates, 'Komponenten', 'Modul');
                     if (pvMod) {
                         window.addItemRow({
