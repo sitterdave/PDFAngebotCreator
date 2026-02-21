@@ -269,6 +269,11 @@
     </div>
 </div>
 
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if quote.customer_email %}
 <script>
 // Sender-Reminder: zeigt Modal vor jedem Mail-Versand
 var pendingMailtoUrl = null;
