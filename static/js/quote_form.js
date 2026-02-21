@@ -74,6 +74,9 @@ document.addEventListener('DOMContentLoaded', function() {
         recalculate();
     }
 
+    // Global zugänglich machen für email_import.js
+    window.addItemRow = addItemRow;
+
     // --- Remove item ---
     function bindRemoveButtons() {
         document.querySelectorAll('.remove-item-btn').forEach(function(btn) {

@@ -185,6 +185,11 @@ document.addEventListener('DOMContentLoaded', function() {
             notesField.value = notes.join('\n');
         }
 
+        // === Automatisch Positionen hinzufügen ===
+        if (variante && window.addItemRow) {
+            addPositionsFromEmail(data, variante);
+        }
+
         // Erfolgs-Anzeige
         var parts = ['<strong>' + escapeHtml(data.name) + '</strong>'];
         if (data.city) parts.push(escapeHtml(data.city));
@@ -297,6 +302,225 @@ document.addEventListener('DOMContentLoaded', function() {
             weitereInfos: findValue('Weitere Informationen') || findValue('Weitere Infos') || findValue('Anmerkungen'),
             gesamtbetrag: findValue('Gesamtbetrag') || findValue('Gesamtpreis')
         };
+    }
+
+    // === Automatisch Positionen aus E-Mail-Daten hinzufügen ===
+    function addPositionsFromEmail(data, variante) {
+        // Stellplätze ermitteln (1, 2, oder 3)
+        var stellplaetze = data.stellplaetze || data.carport_stellplaetze || '';
+        var slotCount = '2'; // Default
+        if (/1\s*Stellpl/i.test(stellplaetze)) slotCount = '1';
+        else if (/3/i.test(stellplaetze)) slotCount = '3';
+        else if (/2/i.test(stellplaetze)) slotCount = '2';
+
+        // Stellplatz-Auswahl im Modal setzen (für spätere manuelle Nacharbeit)
+        var slotInput = document.getElementById('slotCount');
+        if (slotInput) slotInput.value = slotCount;
+
+        // Modell-Nummer aus Variante extrahieren (z.B. "Modell 05", "Modell S", "Modell S2")
+        var modellMatch = variante.match(/Modell\s+(\S+)/i);
+        var modellNr = modellMatch ? modellMatch[1] : '';
+
+        // Installation aus E-Mail
+        var installation = data.installation || data.carport_installation || '';
+
+        // Module aus E-Mail
+        var module = data.module || '';
+
+        // Batterie aus E-Mail
+        var batterie = data.batterie || '';
+
+        // Produkt-Templates laden und matchen
+        fetch('/api/products')
+            .then(function(r) { return r.json(); })
+            .then(function(templates) {
+                var added = [];
+
+                // 1. Carport-Modell finden
+                if (modellNr) {
+                    var carport = findProduct(templates, 'Carport', modellNr);
+                    if (carport) {
+                        var price = getPrice(carport, slotCount);
+                        var title = getTitle(carport, slotCount);
+                        var desc = getDesc(carport, slotCount);
+                        var qty = getQty(carport, slotCount);
+                        // Stellplatz-Info an Titel anhängen
+                        var slotLabel = slotCount === '1' ? '1 Stellplatz' : slotCount + ' Stellplätze';
+                        if (!/Stellpl/i.test(title)) {
+                            title += ' \u2013 ' + slotLabel;
+                        }
+                        window.addItemRow({
+                            title: title,
+                            description: desc,
+                            quantity: qty,
+                            price: price,
+                            is_carport: true
+                        });
+                        added.push(title);
+                    }
+                }
+
+                // 2. Installation (Carport Installation + PV Installation)
+                if (installation) {
+                    // Carport Installation
+                    var carportInstall = findProduct(templates, 'Installation', 'Carport Installation');
+                    if (carportInstall) {
+                        window.addItemRow({
+                            title: getTitle(carportInstall, slotCount),
+                            description: getDesc(carportInstall, slotCount),
+                            quantity: getQty(carportInstall, slotCount),
+                            price: getPrice(carportInstall, slotCount),
+                            is_carport: true
+                        });
+                        added.push('Carport Installation');
+                    }
+
+                    // PV-Installation wenn explizit erwähnt
+                    if (/PV|Anlage/i.test(installation)) {
+                        var pvInstall = findProduct(templates, 'Installation', 'Installation der PV');
+                        if (pvInstall) {
+                            window.addItemRow({
+                                title: getTitle(pvInstall, slotCount),
+                                description: getDesc(pvInstall, slotCount),
+                                quantity: getQty(pvInstall, slotCount),
+                                price: getPrice(pvInstall, slotCount),
+                                is_carport: false
+                            });
+                            added.push('PV Installation');
+                        }
+                    }
+                }
+
+                // 3. PV-Module (können "PV-Module", "Ja Solar", "Solarmodule" etc. heißen)
+                if (module && /PV.?Modul|Modul/i.test(module)) {
+                    var pvMod = findProduct(templates, 'Komponenten', 'PV-Module')
+                        || findProduct(templates, 'Komponenten', 'Solar')
+                        || findProduct(templates, 'Komponenten', 'Modul');
+                    if (pvMod) {
+                        window.addItemRow({
+                            title: getTitle(pvMod, slotCount),
+                            description: getDesc(pvMod, slotCount),
+                            quantity: getQty(pvMod, slotCount),
+                            price: getPrice(pvMod, slotCount),
+                            is_carport: false
+                        });
+                        added.push('PV-Module');
+                    }
+                }
+
+                // 4. Wechselrichter
+                if (module && /Wechselrichter/i.test(module)) {
+                    var wr = findProduct(templates, 'Komponenten', 'Wechselrichter');
+                    if (wr) {
+                        window.addItemRow({
+                            title: getTitle(wr, slotCount),
+                            description: getDesc(wr, slotCount),
+                            quantity: getQty(wr, slotCount),
+                            price: getPrice(wr, slotCount),
+                            is_carport: false
+                        });
+                        added.push('Wechselrichter');
+                    }
+                }
+
+                // 5. Elektrische Anschlüsse (wenn Installation gewählt)
+                if (installation && /PV|Anlage/i.test(installation)) {
+                    var elektro = findProduct(templates, 'Installation', 'Elektrische Anschlüsse');
+                    if (elektro) {
+                        window.addItemRow({
+                            title: getTitle(elektro, slotCount),
+                            description: getDesc(elektro, slotCount),
+                            quantity: getQty(elektro, slotCount),
+                            price: getPrice(elektro, slotCount),
+                            is_carport: false
+                        });
+                        added.push('Elektrische Anschlüsse');
+                    }
+                }
+
+                // 6. Elektromaterialien (wenn Installation gewählt)
+                if (installation && /PV|Anlage/i.test(installation)) {
+                    var emat = findProduct(templates, 'Komponenten', 'Elektromaterial');
+                    if (emat) {
+                        window.addItemRow({
+                            title: getTitle(emat, slotCount),
+                            description: getDesc(emat, slotCount),
+                            quantity: getQty(emat, slotCount),
+                            price: getPrice(emat, slotCount),
+                            is_carport: false
+                        });
+                        added.push('Elektromaterialien');
+                    }
+                }
+
+                // 7. Lieferung immer hinzufügen
+                var lieferung = findProduct(templates, 'Lieferung', 'Lieferung');
+                if (lieferung) {
+                    window.addItemRow({
+                        title: getTitle(lieferung, slotCount),
+                        description: getDesc(lieferung, slotCount),
+                        quantity: getQty(lieferung, slotCount),
+                        price: getPrice(lieferung, slotCount),
+                        is_carport: false
+                    });
+                    added.push('Lieferung');
+                }
+
+                if (added.length) {
+                    var posInfo = '<br><small class="text-muted"><i class="bi bi-list-check me-1"></i>'
+                        + added.length + ' Positionen hinzugefügt: ' + added.join(', ') + '</small>';
+                    resultDiv.querySelector('.alert').innerHTML += posInfo;
+                }
+            })
+            .catch(function(err) {
+                // Positionen konnten nicht geladen werden - nicht schlimm
+            });
+    }
+
+    // Produkt-Template nach Kategorie und Titel-Fragment finden
+    function findProduct(templates, category, titleFragment) {
+        var frag = titleFragment.toLowerCase();
+        return templates.find(function(t) {
+            return t.category === category && t.title.toLowerCase().indexOf(frag) >= 0;
+        }) || null;
+    }
+
+    // Preis für Stellplatz-Anzahl ermitteln
+    function getPrice(template, slots) {
+        if (slots === '1' && template.price_1_slot != null) return template.price_1_slot;
+        if (slots === '2' && template.price_2_slot != null) return template.price_2_slot;
+        if (slots === '3' && template.price_3_plus) {
+            var p = parseFloat(template.price_3_plus);
+            if (!isNaN(p)) return p;
+        }
+        // Fallback
+        if (template.price_1_slot != null) return template.price_1_slot;
+        if (template.price_2_slot != null) return template.price_2_slot;
+        return 0;
+    }
+
+    // Titel für Stellplatz-Anzahl
+    function getTitle(template, slots) {
+        if (slots === '1' && template.title_1_slot) return template.title_1_slot;
+        if (slots === '2' && template.title_2_slot) return template.title_2_slot;
+        if (slots === '3' && template.title_3_plus_title) return template.title_3_plus_title;
+        return template.title || '';
+    }
+
+    // Beschreibung für Stellplatz-Anzahl
+    function getDesc(template, slots) {
+        if (slots === '1' && template.description_1_slot) return template.description_1_slot;
+        if (slots === '2' && template.description_2_slot) return template.description_2_slot;
+        if (slots === '3' && template.description_3_plus_desc) return template.description_3_plus_desc;
+        return template.description || '';
+    }
+
+    // Menge für Stellplatz-Anzahl
+    function getQty(template, slots) {
+        if (slots === '1' && template.quantity_1_slot) return template.quantity_1_slot;
+        if (slots === '2' && template.quantity_2_slot) return template.quantity_2_slot;
+        if (slots === '3' && template.quantity_3_plus_qty) return template.quantity_3_plus_qty;
+        return template.default_quantity || '1x';
     }
 
     // === Hilfsfunktionen ===
