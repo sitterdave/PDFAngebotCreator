@@ -358,13 +358,37 @@ def api_parse_email():
     return jsonify(data)
 
 
+def _html_to_text(html):
+    """Convert HTML to plain text, preserving line breaks from block elements."""
+    import html as html_module
+    text = html
+    # Block-level tags -> newline before content
+    text = re.sub(r'<(?:br|BR)\s*/?\s*>', '\n', text)
+    text = re.sub(r'<(?:hr|HR)\s*/?\s*>', '\n---\n', text)
+    text = re.sub(r'</(?:div|DIV|p|P|tr|TR|li|LI|h[1-6]|H[1-6]|blockquote|BLOCKQUOTE)\s*>', '\n', text)
+    text = re.sub(r'<(?:div|DIV|p|P|tr|TR|li|LI|h[1-6]|H[1-6]|blockquote|BLOCKQUOTE)[^>]*>', '\n', text)
+    text = re.sub(r'</(?:td|TD|th|TH)\s*>', '\t', text)
+    # Remove all remaining tags
+    text = re.sub(r'<style[^>]*>.*?</style>', '', text, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r'<script[^>]*>.*?</script>', '', text, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r'<[^>]+>', '', text)
+    # Decode HTML entities
+    text = html_module.unescape(text)
+    # Clean up excessive whitespace
+    text = re.sub(r'[ \t]+', ' ', text)
+    text = re.sub(r'\n\s*\n\s*\n+', '\n\n', text)
+    # Trim each line
+    text = '\n'.join(line.strip() for line in text.split('\n'))
+    return text.strip()
+
+
 def _parse_msg_file(raw_bytes):
     """Extract body text from Outlook .msg file using olefile."""
     if olefile is None:
         return ''
-    import io
+    import io as io_module
     try:
-        ole = olefile.OleFileIO(io.BytesIO(raw_bytes))
+        ole = olefile.OleFileIO(io_module.BytesIO(raw_bytes))
     except Exception:
         return ''
 
@@ -393,13 +417,12 @@ def _parse_msg_file(raw_bytes):
             if ole.exists(stream_name):
                 data = ole.openstream(stream_name).read()
                 if stream_name.endswith('1F'):
-                    html = data.decode('utf-16-le', errors='replace')
+                    raw_html = data.decode('utf-16-le', errors='replace')
                 elif stream_name.endswith('1E'):
-                    html = data.decode('utf-8', errors='replace')
+                    raw_html = data.decode('utf-8', errors='replace')
                 else:
-                    html = data.decode('utf-8', errors='replace')
-                body = re.sub(r'<br\s*/?>', '\n', html)
-                body = re.sub(r'<[^>]+>', '', body)
+                    raw_html = data.decode('utf-8', errors='replace')
+                body = _html_to_text(raw_html)
                 break
 
     ole.close()
@@ -420,21 +443,45 @@ def _parse_eml_file(raw_bytes):
             elif ct == 'text/html' and not body:
                 charset = part.get_content_charset() or 'utf-8'
                 html_body = part.get_payload(decode=True).decode(charset, errors='replace')
-                body = re.sub(r'<br\s*/?>', '\n', html_body)
-                body = re.sub(r'<[^>]+>', '', body)
+                body = _html_to_text(html_body)
     else:
         charset = msg.get_content_charset() or 'utf-8'
         payload = msg.get_payload(decode=True)
         if payload:
             body = payload.decode(charset, errors='replace')
             if msg.get_content_type() == 'text/html':
-                body = re.sub(r'<br\s*/?>', '\n', body)
-                body = re.sub(r'<[^>]+>', '', body)
+                body = _html_to_text(body)
     return body
+
+
+def _ensure_newlines(text):
+    """If text has no newlines, insert them before known labels."""
+    if '\n' in text and len(text.split('\n')) > 5:
+        return text  # Already has newlines
+
+    # Ordered longest first to avoid partial matches
+    labels = [
+        'Neue DE Carport-Anfrage', 'Neue Carport-Anfrage',
+        'Weitere Informationen', 'Ausgewählte Module',
+        'Anzahl Stellplätze', 'Carport-Variante', 'Batteriespeicher',
+        'Preisübersicht', 'Gesamtbetrag', 'Konfiguration', 'Installation',
+        'Kundendaten', 'UID-Nummer', 'Straße/Nr.', 'Adresse',
+        'E-Mail', 'Telefon', 'Hinweis:', 'Firma',
+        'Name', 'Land', 'PLZ', 'Ort',
+    ]
+    for label in labels:
+        # Use word boundary \b to prevent matching inside words
+        # e.g. "Ort" should not match inside "Carport"
+        pattern = r' (?=' + re.escape(label) + r'(?:\s|$))'
+        text = re.sub(pattern, '\n', text)
+
+    return text
 
 
 def _parse_email_text(text):
     """Extract structured fields from a Carport inquiry email."""
+    # Ensure text has proper line breaks
+    text = _ensure_newlines(text)
     lines = [l.strip() for l in text.split('\n')]
 
     known_labels = [
@@ -444,7 +491,6 @@ def _parse_email_text(text):
         'konfiguration', 'anzahl stellplätze', 'carport-variante', 'installation',
         'ausgewählte module', 'batteriespeicher', 'weitere informationen',
         'preisübersicht', 'gesamtbetrag', 'hinweis',
-        'hinweis: lieferkosten werden individuell berechnet und sind nicht im gesamtbetrag enthalten.',
     ]
 
     def norm(s):
@@ -453,15 +499,32 @@ def _parse_email_text(text):
     norm_labels = [norm(l) for l in known_labels]
 
     def is_label(line):
-        return norm(line) in norm_labels
+        n = norm(line)
+        if n in norm_labels:
+            return True
+        # Also treat as label if line starts with a short label (<=8 chars normalized)
+        # that has extra text. E.g. "Adresse Straße/Nr. Winzerweg" starts with "Adresse"
+        # But NOT "Installation der PV-Anlage" (long label "installation" has real value after it)
+        for nl in norm_labels:
+            if len(nl) <= 8 and n.startswith(nl + ' '):
+                return True
+        return False
 
     def find_value(label):
         target = norm(label)
         for i, line in enumerate(lines):
-            if norm(line) == target:
-                for j in range(i + 1, min(i + 4, len(lines))):
-                    if lines[j] and not is_label(lines[j]):
-                        return lines[j]
+            n = norm(line)
+            # Exact match: label on its own line, value on next non-empty line
+            if n == target:
+                if i + 1 < len(lines) and lines[i + 1] and not is_label(lines[i + 1]):
+                    return lines[i + 1]
+                # If next line is a label or empty, this field has no value
+                return ''
+            # Same-line match: "Label Value" on one line
+            elif n.startswith(target + ' '):
+                rest = line[len(label):].strip().lstrip(':').strip()
+                if rest:
+                    return rest
         return ''
 
     return {
