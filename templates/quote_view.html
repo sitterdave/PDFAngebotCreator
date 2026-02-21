@@ -36,13 +36,6 @@
     </div>
 </div>
 
-{% if quote.customer_email %}
-<div class="alert alert-warning d-flex align-items-center py-2 px-3 mb-4 fw-bold" role="alert" style="font-size: 1.05rem; border-left: 5px solid #ffc107;">
-    <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
-    Bitte nicht vergessen, sende von: <span class="ms-1" style="text-decoration: underline;">office@stromsparen24.at</span>
-</div>
-{% endif %}
-
 <div class="row g-4">
     <!-- Left column: Quote details -->
     <div class="col-md-8">
@@ -252,7 +245,48 @@
 </div>
 
 {% if quote.customer_email %}
+<!-- Sender Reminder Modal -->
+<div class="modal fade" id="senderReminderModal" tabindex="-1" aria-labelledby="senderReminderLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-warning">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title fw-bold" id="senderReminderLabel">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i> Erinnerung
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <p class="fs-5 mb-1">Bitte nicht vergessen, sende von:</p>
+                <p class="fs-4 fw-bold text-primary mb-0">office@stromsparen24.at</p>
+            </div>
+            <div class="modal-footer justify-content-center">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-success" id="senderReminderConfirm">
+                    <i class="bi bi-envelope"></i> Verstanden, weiter zum Mail
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+// Sender-Reminder: zeigt Modal vor jedem Mail-Versand
+var pendingMailtoUrl = null;
+var senderModal = new bootstrap.Modal(document.getElementById('senderReminderModal'));
+
+document.getElementById('senderReminderConfirm').addEventListener('click', function() {
+    senderModal.hide();
+    if (pendingMailtoUrl) {
+        window.location.href = pendingMailtoUrl;
+        pendingMailtoUrl = null;
+    }
+});
+
+function openMailWithReminder(mailtoUrl) {
+    pendingMailtoUrl = mailtoUrl;
+    senderModal.show();
+}
+
 // Prüfen ob ein S-Modell Produkt im Angebot ist
 var hasSModell = false;
 {% for item in totals.positions %}
@@ -316,9 +350,9 @@ document.getElementById('mailto-btn').addEventListener('click', function(e) {
         + 'UID ATU69952367, FN: 440720v\n'
         + 'office@stromsparen24.at / 06603118004';
 
-    window.location.href = 'mailto:' + encodeURIComponent(email)
+    openMailWithReminder('mailto:' + encodeURIComponent(email)
         + '?subject=' + encodeURIComponent(betreff)
-        + '&body=' + encodeURIComponent(text);
+        + '&body=' + encodeURIComponent(text));
 });
 
 document.getElementById('mailto-schneelast-btn').addEventListener('click', function(e) {
@@ -374,9 +408,9 @@ document.getElementById('mailto-schneelast-btn').addEventListener('click', funct
         + 'office@stromsparen24.at\n'
         + '0660 3118004';
 
-    window.location.href = 'mailto:' + encodeURIComponent(email)
+    openMailWithReminder('mailto:' + encodeURIComponent(email)
         + '?subject=' + encodeURIComponent(betreff)
-        + '&body=' + encodeURIComponent(text);
+        + '&body=' + encodeURIComponent(text));
 });
 
 document.getElementById('mailto-s-modell-btn').addEventListener('click', function(e) {
@@ -420,9 +454,9 @@ document.getElementById('mailto-s-modell-btn').addEventListener('click', functio
         + 'office@stromsparen24.at\n'
         + '0660 3118004';
 
-    window.location.href = 'mailto:' + encodeURIComponent(email)
+    openMailWithReminder('mailto:' + encodeURIComponent(email)
         + '?subject=' + encodeURIComponent(betreff)
-        + '&body=' + encodeURIComponent(text);
+        + '&body=' + encodeURIComponent(text));
 });
 </script>
 {% endif %}
