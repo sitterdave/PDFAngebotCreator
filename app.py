@@ -480,7 +480,20 @@ def _ensure_newlines(text):
 
 def _parse_email_text(text):
     """Extract structured fields from a Carport inquiry email."""
-    # Ensure text has proper line breaks
+    # Pre-process: convert tab-separated "Label\tValue" lines (from HTML tables)
+    # into "Label\nValue" so the parser can handle them uniformly
+    new_lines = []
+    for line in text.split('\n'):
+        stripped = line.strip()
+        if '\t' in stripped:
+            parts = [p.strip() for p in stripped.split('\t') if p.strip()]
+            for part in parts:
+                new_lines.append(part)
+        else:
+            new_lines.append(stripped)
+    text = '\n'.join(new_lines)
+
+    # Ensure text has proper line breaks (for single-line .msg text)
     text = _ensure_newlines(text)
     lines = [l.strip() for l in text.split('\n')]
 
