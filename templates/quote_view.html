@@ -36,6 +36,13 @@
     </div>
 </div>
 
+{% if quote.customer_email %}
+<div class="alert alert-warning d-flex align-items-center py-2 px-3 mb-4 fw-bold" role="alert" style="font-size: 1.05rem; border-left: 5px solid #ffc107;">
+    <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
+    Bitte nicht vergessen, sende von: <span class="ms-1" style="text-decoration: underline;">office@stromsparen24.at</span>
+</div>
+{% endif %}
+
 <div class="row g-4">
     <!-- Left column: Quote details -->
     <div class="col-md-8">
