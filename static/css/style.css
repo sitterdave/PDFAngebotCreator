@@ -43,7 +43,8 @@
 }
 
 .table-teal th {
-    color: white;
+    background-color: var(--brand) !important;
+    color: white !important;
     border-color: var(--brand);
 }
 
