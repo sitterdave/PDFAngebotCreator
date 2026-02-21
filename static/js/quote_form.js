@@ -201,7 +201,30 @@ document.addEventListener('DOMContentLoaded', function() {
     // === Product Template Quick-Add ===
     const productModal = document.getElementById('productModal');
     if (productModal) {
-        productModal.addEventListener('show.bs.modal', loadProductTemplates);
+        // Bei jedem Öffnen: zurück zu Step 1 (Stellplatz-Auswahl)
+        productModal.addEventListener('show.bs.modal', function() {
+            document.getElementById('slotSelectionStep').style.display = '';
+            document.getElementById('productSelectionStep').style.display = 'none';
+        });
+
+        // Stellplatz-Buttons: Auswahl setzen und zu Step 2 wechseln
+        document.querySelectorAll('.slot-select-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var slots = this.getAttribute('data-slots');
+                document.getElementById('slotCount').value = slots;
+                var label = slots === '1' ? '1 Stellplatz' : (slots === '2' ? '2 Stellplätze' : '3+ Stellplätze');
+                document.getElementById('selectedSlotBadge').textContent = label;
+                document.getElementById('slotSelectionStep').style.display = 'none';
+                document.getElementById('productSelectionStep').style.display = '';
+                loadProductTemplates();
+            });
+        });
+
+        // Zurück-Button: zurück zu Step 1
+        document.getElementById('backToSlotBtn').addEventListener('click', function() {
+            document.getElementById('slotSelectionStep').style.display = '';
+            document.getElementById('productSelectionStep').style.display = 'none';
+        });
     }
 
     function loadProductTemplates() {

@@ -257,16 +257,33 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <div class="mb-3">
-                    <label class="form-label">Anzahl Stellplätze (für Preisauswahl)</label>
-                    <select class="form-select" id="slotCount">
-                        <option value="1">1 Stellplatz</option>
-                        <option value="2" selected>2 Stellplätze</option>
-                        <option value="3">3+ Stellplätze</option>
-                    </select>
+                <!-- Step 1: Stellplatz-Auswahl -->
+                <div id="slotSelectionStep">
+                    <p class="text-muted mb-3">Für wie viele Stellplätze ist das Angebot?</p>
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-outline-primary slot-select-btn" data-slots="1">
+                            <i class="bi bi-car-front"></i> 1 Stellplatz
+                        </button>
+                        <button type="button" class="btn btn-outline-primary slot-select-btn" data-slots="2">
+                            <i class="bi bi-car-front me-1"></i><i class="bi bi-car-front"></i> 2 Stellplätze
+                        </button>
+                        <button type="button" class="btn btn-outline-primary slot-select-btn" data-slots="3">
+                            <i class="bi bi-car-front me-1"></i><i class="bi bi-car-front me-1"></i><i class="bi bi-car-front"></i> 3+ Stellplätze
+                        </button>
+                    </div>
                 </div>
-                <div id="productList">
-                    <p class="text-muted">Lade Vorlagen...</p>
+                <!-- Step 2: Produkt-Liste (zunächst versteckt) -->
+                <div id="productSelectionStep" style="display: none;">
+                    <div class="d-flex align-items-center mb-3">
+                        <button type="button" class="btn btn-sm btn-outline-secondary me-2" id="backToSlotBtn">
+                            <i class="bi bi-arrow-left"></i> Zurück
+                        </button>
+                        <span class="badge bg-primary fs-6" id="selectedSlotBadge"></span>
+                    </div>
+                    <input type="hidden" id="slotCount" value="2">
+                    <div id="productList">
+                        <p class="text-muted">Lade Vorlagen...</p>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
