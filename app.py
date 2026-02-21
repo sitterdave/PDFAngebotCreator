@@ -171,9 +171,15 @@ def download_pdf(quote_id):
         return redirect(url_for('index'))
 
     pdf_bytes = generate_quote_pdf(quote, items)
-    buffer = io.BytesIO(pdf_bytes)
     filename = f"Angebot_{quote['quote_number'].replace('/', '-').replace(':', '-').replace(' ', '_')}.pdf"
 
+    # PDF-Kopie im pdfs/-Ordner speichern (überschreibt bei erneutem Export)
+    pdf_dir = os.path.join(app.root_path, 'pdfs')
+    os.makedirs(pdf_dir, exist_ok=True)
+    with open(os.path.join(pdf_dir, filename), 'wb') as f:
+        f.write(pdf_bytes)
+
+    buffer = io.BytesIO(pdf_bytes)
     return send_file(
         buffer,
         mimetype='application/pdf',

@@ -6,6 +6,7 @@ static/uploads/*
 !static/uploads/.gitkeep
 .env
 *.db
+pdfs/
 venv/
 .venv/
 # Only keep the 4 DejaVu Sans fonts needed for PDF generation
