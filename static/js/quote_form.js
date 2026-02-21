@@ -15,14 +15,18 @@ document.addEventListener('DOMContentLoaded', function() {
         const row = document.createElement('tr');
         row.className = 'item-row';
         row.dataset.index = idx;
+        row.draggable = true;
 
         const title = data ? (data.title || '') : '';
         const desc = data ? (data.description || '') : '';
         const qty = data ? (data.quantity || '1x') : '1x';
         const price = data ? (data.price || 0) : 0;
         const isCarport = data ? data.is_carport : false;
+        const isOptional = data ? data.is_optional : false;
+        const isRichtpreis = data ? data.is_richtpreis : false;
 
         row.innerHTML = `
+            <td class="align-middle text-center drag-handle" style="cursor: grab; color: #999;"><i class="bi bi-grip-vertical"></i></td>
             <td class="align-middle text-center pos-number">${document.querySelectorAll('.item-row').length + 1}</td>
             <td>
                 <input type="text" name="item_title_${idx}"
@@ -50,12 +54,26 @@ document.addEventListener('DOMContentLoaded', function() {
                        class="form-check-input item-carport" value="1"
                        ${isCarport ? 'checked' : ''}>
             </td>
+            <td class="text-center">
+                <input type="checkbox" name="item_is_optional_${idx}"
+                       class="form-check-input item-optional" value="1"
+                       ${isOptional ? 'checked' : ''}>
+            </td>
+            <td class="text-center">
+                <input type="checkbox" name="item_is_richtpreis_${idx}"
+                       class="form-check-input item-richtpreis" value="1"
+                       ${isRichtpreis ? 'checked' : ''}>
+            </td>
             <td>
                 <button type="button" class="btn btn-sm btn-outline-danger remove-item-btn">
                     <i class="bi bi-trash"></i>
                 </button>
             </td>
         `;
+
+        // Remove empty hint if present
+        const hint = document.getElementById('emptyItemsHint');
+        if (hint) hint.remove();
 
         itemsBody.appendChild(row);
         itemIndex++;
@@ -64,6 +82,9 @@ document.addEventListener('DOMContentLoaded', function() {
         recalculate();
     }
 
+    // Global zugänglich machen für email_import.js
+    window.addItemRow = addItemRow;
+
     // --- Remove item ---
     function bindRemoveButtons() {
         document.querySelectorAll('.remove-item-btn').forEach(function(btn) {
@@ -71,6 +92,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 btn.closest('tr').remove();
                 renumberPositions();
                 recalculate();
+                updateEmptyHint();
             };
         });
     }
@@ -80,7 +102,15 @@ document.addEventListener('DOMContentLoaded', function() {
         const rows = document.querySelectorAll('.item-row');
         rows.forEach(function(row, i) {
             row.querySelector('.pos-number').textContent = i + 1;
+            row.dataset.index = i;
+            // Re-index all form field names so indices are always 0, 1, 2, ...
+            row.querySelectorAll('input, textarea').forEach(function(el) {
+                if (el.name) {
+                    el.name = el.name.replace(/_\d+$/, '_' + i);
+                }
+            });
         });
+        itemIndex = rows.length;
     }
 
     // --- Country change: show/hide carport column ---
@@ -115,8 +145,13 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll('.item-row').forEach(function(row) {
             const priceInput = row.querySelector('.item-price');
             const carportCheckbox = row.querySelector('.item-carport');
+            const optionalCheckbox = row.querySelector('.item-optional');
             const price = parseFloat(priceInput ? priceInput.value : 0) || 0;
             const isCarport = carportCheckbox ? carportCheckbox.checked : false;
+            const isOptional = optionalCheckbox ? optionalCheckbox.checked : false;
+
+            // Optionale Positionen nicht in Summe zählen
+            if (isOptional) return;
 
             netto += price;
 
@@ -142,12 +177,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Bind price change events (using event delegation)
     document.addEventListener('input', function(e) {
-        if (e.target.classList.contains('item-price') || e.target.classList.contains('item-carport')) {
+        if (e.target.classList.contains('item-price') || e.target.classList.contains('item-carport') || e.target.classList.contains('item-optional')) {
             recalculate();
         }
     });
     document.addEventListener('change', function(e) {
-        if (e.target.classList.contains('item-carport')) {
+        if (e.target.classList.contains('item-carport') || e.target.classList.contains('item-optional')) {
             recalculate();
         }
     });
@@ -155,15 +190,52 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initial calculation
     recalculate();
 
-    // Add first empty row if no items exist
-    if (document.querySelectorAll('.item-row').length === 0) {
-        addItemRow();
+    // Show hint when no items exist (no auto-added empty row)
+    function updateEmptyHint() {
+        let hint = document.getElementById('emptyItemsHint');
+        if (document.querySelectorAll('.item-row').length === 0) {
+            if (!hint) {
+                hint = document.createElement('tr');
+                hint.id = 'emptyItemsHint';
+                hint.innerHTML = '<td colspan="10" class="text-center text-muted py-3">'
+                    + '<i class="bi bi-info-circle me-1"></i>'
+                    + 'Positionen über "Aus Vorlage" oder "Leere Position" hinzufügen'
+                    + '</td>';
+                itemsBody.appendChild(hint);
+            }
+        } else if (hint) {
+            hint.remove();
+        }
     }
+    updateEmptyHint();
 
     // === Product Template Quick-Add ===
     const productModal = document.getElementById('productModal');
     if (productModal) {
-        productModal.addEventListener('show.bs.modal', loadProductTemplates);
+        // Bei jedem Öffnen: zurück zu Step 1 (Stellplatz-Auswahl)
+        productModal.addEventListener('show.bs.modal', function() {
+            document.getElementById('slotSelectionStep').style.display = '';
+            document.getElementById('productSelectionStep').style.display = 'none';
+        });
+
+        // Stellplatz-Buttons: Auswahl setzen und zu Step 2 wechseln
+        document.querySelectorAll('.slot-select-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var slots = this.getAttribute('data-slots');
+                document.getElementById('slotCount').value = slots;
+                var label = slots === '1' ? '1 Stellplatz' : (slots === '2' ? '2 Stellplätze' : '3+ Stellplätze');
+                document.getElementById('selectedSlotBadge').textContent = label;
+                document.getElementById('slotSelectionStep').style.display = 'none';
+                document.getElementById('productSelectionStep').style.display = '';
+                loadProductTemplates();
+            });
+        });
+
+        // Zurück-Button: zurück zu Step 1
+        document.getElementById('backToSlotBtn').addEventListener('click', function() {
+            document.getElementById('slotSelectionStep').style.display = '';
+            document.getElementById('productSelectionStep').style.display = 'none';
+        });
     }
 
     function loadProductTemplates() {
@@ -191,15 +263,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     html += '<h6 class="mt-3 mb-2 text-muted">' + escapeHtml(catName) + '</h6>';
                     html += '<div class="list-group mb-2">';
                     catItems.forEach(t => {
-                        const jsonStr = JSON.stringify(t);
+                        const qty = getTemplateQuantityDisplay(t);
+                        const displayTitle = getTemplateTitle(t);
+                        const displayDesc = getTemplateDescription(t);
                         html += '<button type="button" class="list-group-item list-group-item-action product-add-btn"'
                             + ' data-product-id="' + t.id + '">'
                             + '<div class="d-flex justify-content-between align-items-center">'
                             + '<div>'
-                            + '<strong>' + escapeHtml(t.title) + '</strong>'
-                            + (t.description ? '<br><small class="text-muted">' + escapeHtml(t.description.substring(0, 100)) + '</small>' : '')
+                            + '<strong class="product-title">' + escapeHtml(displayTitle) + '</strong>'
+                            + (displayDesc ? '<br><small class="text-muted product-desc">' + escapeHtml(displayDesc.substring(0, 100)) + '</small>' : '')
                             + '</div>'
                             + '<div class="text-end text-nowrap ms-3">'
+                            + (qty ? '<span class="product-qty badge bg-info me-1">' + escapeHtml(qty) + '</span>' : '')
                             + '<span class="product-price badge bg-secondary">' + getTemplatePrice(t) + '</span>'
                             + '</div>'
                             + '</div>'
@@ -217,7 +292,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     btn.addEventListener('click', function() {
                         const pid = parseInt(this.dataset.productId);
                         const product = templates.find(t => t.id === pid);
-                        if (product) addProductToQuote(product);
+                        if (product) addProductToQuote(product, this);
                     });
                 });
 
@@ -230,8 +305,19 @@ document.addEventListener('DOMContentLoaded', function() {
                             const product = templates.find(t => t.id === pid);
                             if (product) {
                                 const priceSpan = btn.querySelector('.product-price');
-                                if (priceSpan) {
-                                    priceSpan.textContent = getTemplatePrice(product);
+                                if (priceSpan) priceSpan.textContent = getTemplatePrice(product);
+                                const qtySpan = btn.querySelector('.product-qty');
+                                const qtyText = getTemplateQuantityDisplay(product);
+                                if (qtySpan) {
+                                    if (qtyText) { qtySpan.textContent = qtyText; qtySpan.style.display = ''; }
+                                    else { qtySpan.style.display = 'none'; }
+                                }
+                                const titleEl = btn.querySelector('.product-title');
+                                if (titleEl) titleEl.textContent = getTemplateTitle(product);
+                                const descEl = btn.querySelector('.product-desc');
+                                if (descEl) {
+                                    const d = getTemplateDescription(product);
+                                    descEl.textContent = d ? d.substring(0, 100) : '';
                                 }
                             }
                         });
@@ -243,8 +329,37 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 
+    function getSlotCount() {
+        const el = document.getElementById('slotCount');
+        return el ? el.value : '2';
+    }
+
+    function getTemplateTitle(template) {
+        const slots = getSlotCount();
+        if (slots === '1' && template.title_1_slot) return template.title_1_slot;
+        if (slots === '2' && template.title_2_slot) return template.title_2_slot;
+        if (slots === '3' && template.title_3_plus_title) return template.title_3_plus_title;
+        return template.title || '';
+    }
+
+    function getTemplateDescription(template) {
+        const slots = getSlotCount();
+        if (slots === '1' && template.description_1_slot) return template.description_1_slot;
+        if (slots === '2' && template.description_2_slot) return template.description_2_slot;
+        if (slots === '3' && template.description_3_plus_desc) return template.description_3_plus_desc;
+        return template.description || '';
+    }
+
+    function getTemplateQuantityDisplay(template) {
+        const slots = getSlotCount();
+        if (slots === '1' && template.quantity_1_slot) return template.quantity_1_slot;
+        if (slots === '2' && template.quantity_2_slot) return template.quantity_2_slot;
+        if (slots === '3' && template.quantity_3_plus_qty) return template.quantity_3_plus_qty;
+        return '';
+    }
+
     function getTemplatePrice(template) {
-        const slots = document.getElementById('slotCount') ? document.getElementById('slotCount').value : '2';
+        const slots = getSlotCount();
         if (slots === '1' && template.price_1_slot != null) {
             return formatCurrency(template.price_1_slot) + ' \u20AC';
         } else if (slots === '2' && template.price_2_slot != null) {
@@ -252,7 +367,6 @@ document.addEventListener('DOMContentLoaded', function() {
         } else if (slots === '3' && template.price_3_plus) {
             return template.price_3_plus;
         }
-        // Fallback: try any available price
         if (template.price_1_slot != null) return formatCurrency(template.price_1_slot) + ' \u20AC';
         if (template.price_2_slot != null) return formatCurrency(template.price_2_slot) + ' \u20AC';
         if (template.price_3_plus) return template.price_3_plus;
@@ -260,28 +374,104 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function getTemplatePriceValue(template) {
-        const slots = document.getElementById('slotCount') ? document.getElementById('slotCount').value : '2';
+        const slots = getSlotCount();
         if (slots === '1' && template.price_1_slot != null) return template.price_1_slot;
         if (slots === '2' && template.price_2_slot != null) return template.price_2_slot;
-        // Fallback
+        if (slots === '3' && template.price_3_plus) {
+            const parsed = parseFloat(template.price_3_plus);
+            if (!isNaN(parsed)) return parsed;
+        }
         if (template.price_1_slot != null) return template.price_1_slot;
         if (template.price_2_slot != null) return template.price_2_slot;
         return 0;
     }
 
-    function addProductToQuote(product) {
+    function getTemplateQuantity(product) {
+        const slots = getSlotCount();
+        if (slots === '1' && product.quantity_1_slot) return product.quantity_1_slot;
+        if (slots === '2' && product.quantity_2_slot) return product.quantity_2_slot;
+        if (slots === '3' && product.quantity_3_plus_qty) return product.quantity_3_plus_qty;
+        return product.default_quantity || '1x';
+    }
+
+    function addProductToQuote(product, btnElement) {
         const price = getTemplatePriceValue(product);
+        const quantity = getTemplateQuantity(product);
+        let title = getTemplateTitle(product);
+        const description = getTemplateDescription(product);
+
+        // Append Stellplatz info for carport products
+        if (product.is_carport && product.category === 'Carport') {
+            const slots = getSlotCount();
+            const slotLabel = slots === '1' ? '1 Stellplatz' : slots + ' Stellplätze';
+            if (!/Stellpl/i.test(title)) {
+                title += ' \u2013 ' + slotLabel;
+            }
+        }
+
         addItemRow({
-            title: product.title,
-            description: product.description || '',
-            quantity: product.default_quantity || '1x',
+            title: title,
+            description: description,
+            quantity: quantity,
             price: price,
             is_carport: product.is_carport ? true : false,
         });
 
-        // Close modal
-        const modal = bootstrap.Modal.getInstance(document.getElementById('productModal'));
-        if (modal) modal.hide();
+        // Visual feedback: flash the button blue instead of closing modal
+        if (btnElement) {
+            const origBg = btnElement.style.backgroundColor;
+            const origColor = btnElement.style.color;
+            btnElement.style.backgroundColor = '#1976D280';
+            btnElement.style.color = '#fff';
+            const badge = document.createElement('span');
+            badge.className = 'badge bg-primary ms-2 added-badge';
+            badge.textContent = 'Hinzugefügt!';
+            btnElement.querySelector('.d-flex').appendChild(badge);
+            setTimeout(() => {
+                btnElement.style.backgroundColor = origBg;
+                btnElement.style.color = origColor;
+                const b = btnElement.querySelector('.added-badge');
+                if (b) b.remove();
+            }, 1500);
+        }
+    }
+
+    // --- Form submit: serialize items to JSON hidden field for reliable submission ---
+    const quoteForm = document.getElementById('quoteForm');
+    if (quoteForm) {
+        quoteForm.addEventListener('submit', function() {
+            renumberPositions();
+            const items = [];
+            document.querySelectorAll('.item-row').forEach(function(row) {
+                const idx = row.dataset.index;
+                const titleEl = row.querySelector('[name="item_title_' + idx + '"]');
+                const descEl = row.querySelector('[name="item_description_' + idx + '"]');
+                const qtyEl = row.querySelector('[name="item_quantity_' + idx + '"]');
+                const priceEl = row.querySelector('[name="item_price_' + idx + '"]');
+                const carportEl = row.querySelector('[name="item_is_carport_' + idx + '"]');
+                const optionalEl = row.querySelector('[name="item_is_optional_' + idx + '"]');
+                const richtpreisEl = row.querySelector('[name="item_is_richtpreis_' + idx + '"]');
+                items.push({
+                    title: titleEl ? titleEl.value : '',
+                    description: descEl ? descEl.value : '',
+                    quantity: qtyEl ? qtyEl.value || '1x' : '1x',
+                    total_price: priceEl ? parseFloat(priceEl.value) || 0 : 0,
+                    is_carport: carportEl ? (carportEl.checked ? 1 : 0) : 0,
+                    is_optional: optionalEl ? (optionalEl.checked ? 1 : 0) : 0,
+                    is_richtpreis: richtpreisEl ? (richtpreisEl.checked ? 1 : 0) : 0,
+                });
+            });
+            // Write JSON into hidden field
+            let jsonField = document.getElementById('items_json');
+            if (!jsonField) {
+                jsonField = document.createElement('input');
+                jsonField.type = 'hidden';
+                jsonField.id = 'items_json';
+                jsonField.name = 'items_json';
+                quoteForm.appendChild(jsonField);
+            }
+            jsonField.value = JSON.stringify(items);
+        });
     }
 
     // --- Utility ---
@@ -296,4 +486,77 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!str) return '';
         return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
+
+    // === Drag & Drop zum Verschieben von Positionen ===
+    let draggedRow = null;
+
+    itemsBody.addEventListener('dragstart', function(e) {
+        const row = e.target.closest('.item-row');
+        if (!row) return;
+        draggedRow = row;
+        row.style.opacity = '0.4';
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', '');
+    });
+
+    itemsBody.addEventListener('dragend', function(e) {
+        const row = e.target.closest('.item-row');
+        if (row) row.style.opacity = '';
+        draggedRow = null;
+        // Alle Drop-Markierungen entfernen
+        document.querySelectorAll('.item-row').forEach(function(r) {
+            r.style.borderTop = '';
+            r.style.borderBottom = '';
+        });
+    });
+
+    itemsBody.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        if (!draggedRow) return;
+
+        const targetRow = e.target.closest('.item-row');
+        if (!targetRow || targetRow === draggedRow) return;
+
+        // Alle Markierungen entfernen
+        document.querySelectorAll('.item-row').forEach(function(r) {
+            r.style.borderTop = '';
+            r.style.borderBottom = '';
+        });
+
+        // Anzeigen wo eingefügt wird
+        const rect = targetRow.getBoundingClientRect();
+        const midY = rect.top + rect.height / 2;
+        if (e.clientY < midY) {
+            targetRow.style.borderTop = '3px solid #0d6efd';
+        } else {
+            targetRow.style.borderBottom = '3px solid #0d6efd';
+        }
+    });
+
+    itemsBody.addEventListener('drop', function(e) {
+        e.preventDefault();
+        if (!draggedRow) return;
+
+        const targetRow = e.target.closest('.item-row');
+        if (!targetRow || targetRow === draggedRow) return;
+
+        const rect = targetRow.getBoundingClientRect();
+        const midY = rect.top + rect.height / 2;
+
+        if (e.clientY < midY) {
+            itemsBody.insertBefore(draggedRow, targetRow);
+        } else {
+            itemsBody.insertBefore(draggedRow, targetRow.nextSibling);
+        }
+
+        // Markierungen entfernen
+        document.querySelectorAll('.item-row').forEach(function(r) {
+            r.style.borderTop = '';
+            r.style.borderBottom = '';
+        });
+
+        renumberPositions();
+        recalculate();
+    });
 });

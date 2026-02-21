@@ -48,6 +48,7 @@ def init_db():
             date TEXT NOT NULL,
             valid_until TEXT NOT NULL,
             country TEXT NOT NULL DEFAULT 'AT',
+            customer_salutation TEXT DEFAULT '',
             customer_name TEXT NOT NULL,
             customer_company TEXT DEFAULT '',
             customer_street TEXT DEFAULT '',
@@ -56,6 +57,7 @@ def init_db():
             customer_country_label TEXT DEFAULT '',
             customer_phone TEXT DEFAULT '',
             customer_email TEXT DEFAULT '',
+            customer_uid TEXT DEFAULT '',
             project_name TEXT DEFAULT '',
             project_description TEXT DEFAULT '',
             creator_name TEXT DEFAULT '',
@@ -71,6 +73,15 @@ def init_db():
             title TEXT NOT NULL DEFAULT '',
             description TEXT NOT NULL DEFAULT '',
             default_quantity TEXT NOT NULL DEFAULT '1x',
+            title_1_slot TEXT DEFAULT '',
+            title_2_slot TEXT DEFAULT '',
+            title_3_plus_title TEXT DEFAULT '',
+            description_1_slot TEXT DEFAULT '',
+            description_2_slot TEXT DEFAULT '',
+            description_3_plus_desc TEXT DEFAULT '',
+            quantity_1_slot TEXT DEFAULT '',
+            quantity_2_slot TEXT DEFAULT '',
+            quantity_3_plus_qty TEXT DEFAULT '',
             price_1_slot REAL DEFAULT NULL,
             price_2_slot REAL DEFAULT NULL,
             price_3_plus TEXT DEFAULT '',
@@ -87,6 +98,8 @@ def init_db():
             quantity TEXT NOT NULL DEFAULT '1x',
             total_price REAL NOT NULL DEFAULT 0,
             is_carport INTEGER NOT NULL DEFAULT 0,
+            is_optional INTEGER NOT NULL DEFAULT 0,
+            is_richtpreis INTEGER NOT NULL DEFAULT 0,
             FOREIGN KEY (quote_id) REFERENCES quotes(id) ON DELETE CASCADE
         );
     ''')
@@ -95,20 +108,59 @@ def init_db():
     existing = conn.execute("SELECT id FROM company_settings WHERE id = 1").fetchone()
     if not existing:
         default_terms = (
-            "1) Dieses Angebot ist 30 Tage ab Ausstellungsdatum gueltig. "
-            "Nach Ablauf dieser Frist behalten wir uns eine Anpassung der Konditionen vor.\n"
-            "2) Wir behandeln Ihre Daten mit groesster Sorgfalt.\n"
-            "3) Die Zahlung erfolgt in zwei Raten:\n"
-            "    - 50 % Anzahlung bei Angebotsannahme. Eine Anzahlungsrechnung ueber 50% wird hierzu erstellt.\n"
-            "    - 50 % Restzahlung nach Fertigstellung und Lieferung aller Positionen.\n"
-            "4) Partnerfirma fuer Installationsarbeiten: Alle Installations- und elektrischen Anschlussarbeiten "
-            "werden in Zusammenarbeit mit unserer erfahrenen Partnerfirma durchgefuehrt.\n"
+            "Vertrags- und Zahlungsbedingungen\n\n"
+            "1) Gültigkeit und Vertragsabschluss\n"
+            "Dieses Angebot basiert auf unserer aktuellen Kalkulation und ist preislich 30 Tage ab "
+            "Ausstellungsdatum gültig.\n"
+            "Es ist freibleibend und unverbindlich. Ein rechtsverbindlicher Vertrag kommt ausschließlich "
+            "mit unserer schriftlichen Auftragsbestätigung zustande.\n\n"
+            "2) Zahlungsbedingungen\n"
+            "Die Zahlung erfolgt in zwei Raten:\n"
+            "    \u2022 50 % Anzahlung nach Erhalt der Auftragsbestätigung. Die Bearbeitung des Auftrags sowie "
+            "Materialbestellungen erfolgen erst nach Eingang der Anzahlung.\n"
+            "    \u2022 50 % Restzahlung nach Fertigstellung und Lieferung aller vereinbarten Positionen. "
+            "Die Restzahlung ist innerhalb von 14 Tagen ab Rechnungsdatum ohne Abzug fällig.\n\n"
+            "3) Rechnungsstellung\n"
+            "Stromsparen24.at ist ein Service der Labsupport GmbH & Co KG. "
+            "Die Rechnungsstellung erfolgt ausschließlich durch die Labsupport GmbH & Co KG.\n\n"
+            "4) Installation\n"
+            "Die Installations- und Anschlussarbeiten erfolgen durch unseren "
+            "qualifizierten Partnerbetrieb.\n\n"
+            "5) Datenschutz\n"
+            "Ihre personenbezogenen Daten werden vertraulich und gemäß den geltenden "
+            "datenschutzrechtlichen Bestimmungen verarbeitet. "
+            "Die aktuelle Datenschutzerklärung ist unter www.stromsparen24.at abrufbar "
+            "oder wird auf Anfrage zur Verfügung gestellt.\n\n"
+            "6) Vorbehalte\n"
+            "Irrtümer, Druckfehler sowie Preis-, Material- und Lieferzeitänderungen bleiben vorbehalten.\n"
         )
         conn.execute(
-            "INSERT INTO company_settings (id, terms_text) VALUES (1, ?)",
+            """INSERT INTO company_settings (
+                id, company_name, company_street, company_zip, company_city,
+                company_country, company_email, company_website,
+                company_ust_id, firmenbuchnummer, gerichtsstandort,
+                bank_name, iban, bic,
+                default_valid_days, default_country, default_creator_name,
+                terms_text, brand_name, brand_slogan
+            ) VALUES (
+                1, 'Labsupport GmbH & Co KG', 'Hauptstraße 132', '3441', 'Baumgarten',
+                'AT', 'office@stromsparen24.at', 'www.stromsparen24.at',
+                'ATU69952367', 'FN 440720v', 'Tulln',
+                'Raiffeisenbank', 'AT51 3200 2001 0190 1826', 'RLNWATW1002',
+                30, 'AT', 'David Sitter',
+                ?, 'Stromsparen24', 'UNSER SONNENSYSTEM, IHRE ENERGIEQUELLE.'
+            )""",
             (default_terms,)
         )
         conn.commit()
+
+    # Migrate existing DB: add new columns, fix old text, update company defaults
+    _migrate_quotes_columns(conn)
+    _migrate_quote_items_columns(conn)
+    _migrate_product_template_columns(conn)
+    _migrate_existing_data(conn)
+    _migrate_product_template_data(conn)
+    _migrate_product_prices(conn)
 
     # Seed product templates if empty
     count = conn.execute("SELECT COUNT(*) as c FROM product_templates").fetchone()['c']
@@ -118,121 +170,394 @@ def init_db():
     conn.close()
 
 
+def _migrate_quotes_columns(conn):
+    """Add new columns to quotes if they don't exist yet."""
+    existing = [col[1] for col in conn.execute("PRAGMA table_info(quotes)").fetchall()]
+    if 'customer_uid' not in existing:
+        conn.execute("ALTER TABLE quotes ADD COLUMN customer_uid TEXT DEFAULT ''")
+        conn.commit()
+    if 'customer_salutation' not in existing:
+        conn.execute("ALTER TABLE quotes ADD COLUMN customer_salutation TEXT DEFAULT ''")
+        conn.commit()
+
+
+def _migrate_quote_items_columns(conn):
+    """Add new columns to quote_items if they don't exist yet."""
+    existing = [col[1] for col in conn.execute("PRAGMA table_info(quote_items)").fetchall()]
+    if 'is_optional' not in existing:
+        conn.execute("ALTER TABLE quote_items ADD COLUMN is_optional INTEGER NOT NULL DEFAULT 0")
+        conn.commit()
+    if 'is_richtpreis' not in existing:
+        conn.execute("ALTER TABLE quote_items ADD COLUMN is_richtpreis INTEGER NOT NULL DEFAULT 0")
+        conn.commit()
+
+
+def _migrate_product_template_columns(conn):
+    """Add new columns to product_templates if they don't exist yet."""
+    existing = [col[1] for col in conn.execute("PRAGMA table_info(product_templates)").fetchall()]
+    new_cols = [
+        ('title_1_slot', "TEXT DEFAULT ''"),
+        ('title_2_slot', "TEXT DEFAULT ''"),
+        ('title_3_plus_title', "TEXT DEFAULT ''"),
+        ('description_1_slot', "TEXT DEFAULT ''"),
+        ('description_2_slot', "TEXT DEFAULT ''"),
+        ('description_3_plus_desc', "TEXT DEFAULT ''"),
+        ('quantity_1_slot', "TEXT DEFAULT ''"),
+        ('quantity_2_slot', "TEXT DEFAULT ''"),
+        ('quantity_3_plus_qty', "TEXT DEFAULT ''"),
+    ]
+    for col_name, col_type in new_cols:
+        if col_name not in existing:
+            conn.execute(f"ALTER TABLE product_templates ADD COLUMN {col_name} {col_type}")
+    conn.commit()
+
+
+def _migrate_product_template_data(conn):
+    """Update existing product templates with slot-specific data (runs only once)."""
+    # Skip if Wechselrichter already has slot titles (migration already ran)
+    already_done = conn.execute(
+        "SELECT id FROM product_templates WHERE title = 'Wechselrichter' AND title_1_slot != ''"
+    ).fetchone()
+    if already_done:
+        return
+
+    # Update Wechselrichter with slot-specific models
+    wr = conn.execute(
+        "SELECT id FROM product_templates WHERE title LIKE '%echselrichter%' AND title NOT LIKE '%GoodWe%'"
+    ).fetchone()
+    if wr:
+        conn.execute("""UPDATE product_templates SET
+            title = 'Wechselrichter',
+            description = 'Hybrid-Wechselrichter mit intelligenter Energiesteuerung und Batteriespeicher-Kompatibilität.',
+            title_1_slot = 'GoodWe GW6.5KN-ET PLUS+ Hybrid-Wechselrichter',
+            description_1_slot = 'Effizienter Hybrid-Wechselrichter mit intelligenter Energiesteuerung und Batteriespeicher-Kompatibilität für maximale Eigenverbrauchsoptimierung.',
+            title_2_slot = 'GoodWe GW8KN-ET PLUS+ Hybrid Wechselrichter',
+            description_2_slot = 'Notstromfähig, lüfterlos und geräuscharm ausgestattet mit zwei MPP-Trackern (2 MPPT).',
+            default_quantity = '1x',
+            price_1_slot = 1098.00,
+            price_2_slot = 1211.00,
+            price_3_plus = 'Preis auf Anfrage'
+        WHERE id = ?""", (wr['id'],))
+
+    # Update PV-Module with slot-specific quantities
+    pv = conn.execute(
+        "SELECT id FROM product_templates WHERE title LIKE '%PV-Module%' AND category = 'Komponenten'"
+    ).fetchone()
+    if pv:
+        conn.execute("""UPDATE product_templates SET
+            quantity_1_slot = '9x',
+            quantity_2_slot = '15x',
+            quantity_3_plus_qty = '24x'
+        WHERE id = ?""", (pv['id'],))
+
+    # Replace generic Batteriespeicher with 3 specific options
+    old_bat = conn.execute(
+        "SELECT id, sort_order FROM product_templates WHERE title LIKE '%Batteriespeicher%' AND title NOT LIKE '%Pylontech%' AND title NOT LIKE '%Huawei%'"
+    ).fetchone()
+    if old_bat:
+        sort_base = old_bat['sort_order'] or 32
+        conn.execute("DELETE FROM product_templates WHERE id = ?", (old_bat['id'],))
+
+        batteries = [
+            ('Komponenten', 'Pylontech Force H2 Batteriespeicher 7,1kWh',
+             'Modularer Hochvolt-Batteriespeicher mit 7,1 kWh Kapazität, stapelbarem Design und über 5.000 Ladezyklen für eine langlebige Eigenverbrauchsoptimierung.',
+             '1x', 2950.00, 2950.00, '', 0, sort_base),
+            ('Komponenten', 'Pylontech Force H2 Batteriespeicher 10,65kWh',
+             'LiFePO\u2084-Hochvolt-Speicher, IP55, >5000 Zyklen, 95 % DoD.',
+             '1x', 3458.00, 3458.00, '', 0, sort_base + 1),
+            ('Komponenten', 'Huawei LUNA2000-10-S0 Batterie - 10kWh Speicherpaket',
+             'Hochvolt-Batteriespeicher mit 10 kWh Kapazität.',
+             '1x', 4050.00, 4050.00, '', 0, sort_base + 2),
+        ]
+        for b in batteries:
+            conn.execute('''
+                INSERT INTO product_templates (category, title, description, default_quantity,
+                    price_1_slot, price_2_slot, price_3_plus, is_carport, sort_order)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', b)
+
+    conn.commit()
+
+
+def _migrate_existing_data(conn):
+    """Update existing data that still has old ae/oe/ue text or missing company defaults."""
+    row = conn.execute("SELECT terms_text, company_name FROM company_settings WHERE id = 1").fetchone()
+    if not row:
+        return
+
+    terms = row['terms_text'] or ''
+    company_name = row['company_name'] or ''
+
+    # Check if terms need updating: old patterns or missing new structure
+    needs_update = (
+        'gueltig' in terms or 'groesster' in terms or 'ueber' in terms
+        or 'fuer' in terms or 'durchgefuehrt' in terms
+        or '4)\n\n5)' in terms
+        or ('\nPartnerfirma' in terms and '5) Partnerfirma' not in terms)
+        or ('5) Partnerfirma' in terms and '6) Dieses Angebot ist freibleibend' not in terms)
+        or ('6) Dieses Angebot ist freibleibend' in terms and '1) Gültigkeit' not in terms)
+        or ('1) Gültigkeit' in terms and 'Vertrags- und Zahlungsbedingungen' not in terms)
+    )
+    if needs_update:
+        new_terms = (
+            "Vertrags- und Zahlungsbedingungen\n\n"
+            "1) Gültigkeit und Vertragsabschluss\n"
+            "Dieses Angebot basiert auf unserer aktuellen Kalkulation und ist preislich 30 Tage ab "
+            "Ausstellungsdatum gültig.\n"
+            "Es ist freibleibend und unverbindlich. Ein rechtsverbindlicher Vertrag kommt ausschließlich "
+            "mit unserer schriftlichen Auftragsbestätigung zustande.\n\n"
+            "2) Zahlungsbedingungen\n"
+            "Die Zahlung erfolgt in zwei Raten:\n"
+            "    \u2022 50 % Anzahlung nach Erhalt der Auftragsbestätigung. Die Bearbeitung des Auftrags sowie "
+            "Materialbestellungen erfolgen erst nach Eingang der Anzahlung.\n"
+            "    \u2022 50 % Restzahlung nach Fertigstellung und Lieferung aller vereinbarten Positionen. "
+            "Die Restzahlung ist innerhalb von 14 Tagen ab Rechnungsdatum ohne Abzug fällig.\n\n"
+            "3) Rechnungsstellung\n"
+            "Stromsparen24.at ist ein Service der Labsupport GmbH & Co KG. "
+            "Die Rechnungsstellung erfolgt ausschließlich durch die Labsupport GmbH & Co KG.\n\n"
+            "4) Installation\n"
+            "Die Installations- und Anschlussarbeiten erfolgen durch unseren "
+            "qualifizierten Partnerbetrieb.\n\n"
+            "5) Datenschutz\n"
+            "Ihre personenbezogenen Daten werden vertraulich und gemäß den geltenden "
+            "datenschutzrechtlichen Bestimmungen verarbeitet. "
+            "Die aktuelle Datenschutzerklärung ist unter www.stromsparen24.at abrufbar "
+            "oder wird auf Anfrage zur Verfügung gestellt.\n\n"
+            "6) Vorbehalte\n"
+            "Irrtümer, Druckfehler sowie Preis-, Material- und Lieferzeitänderungen bleiben vorbehalten.\n"
+        )
+        conn.execute("UPDATE company_settings SET terms_text = ? WHERE id = 1", (new_terms,))
+        conn.commit()
+
+    # Fill in missing company defaults if company_name is still empty
+    if not company_name:
+        conn.execute("""UPDATE company_settings SET
+            company_name = 'Labsupport GmbH & Co KG',
+            company_street = 'Hauptstraße 132',
+            company_zip = '3441',
+            company_city = 'Baumgarten',
+            company_country = 'AT',
+            company_email = 'office@stromsparen24.at',
+            company_website = 'www.stromsparen24.at',
+            company_ust_id = 'ATU69952367',
+            firmenbuchnummer = 'FN 440720v',
+            gerichtsstandort = 'Tulln',
+            bank_name = 'Raiffeisenbank',
+            iban = 'AT51 3200 2001 0190 1826',
+            bic = 'RLNWATW1002',
+            default_creator_name = 'David Sitter',
+            brand_name = 'Stromsparen24',
+            brand_slogan = 'UNSER SONNENSYSTEM, IHRE ENERGIEQUELLE.'
+        WHERE id = 1""")
+        conn.commit()
+
+    # Update old address and bank details to new values
+    current = conn.execute(
+        "SELECT company_street, iban FROM company_settings WHERE id = 1"
+    ).fetchone()
+    if current and (current['company_street'] == 'Hauptplatz 5' or current['iban'] == 'AT44 3254 7000 0101 4591'):
+        conn.execute("""UPDATE company_settings SET
+            company_street = 'Hauptstraße 132',
+            company_zip = '3441',
+            company_city = 'Baumgarten',
+            iban = 'AT51 3200 2001 0190 1826',
+            bic = 'RLNWATW1002'
+        WHERE id = 1""")
+        conn.commit()
+
+    # Fix old ae/oe/ue in product template descriptions
+    templates = conn.execute("SELECT id, title, description FROM product_templates").fetchall()
+    for t in templates:
+        title = t['title'] or ''
+        desc = t['description'] or ''
+        if any(old in desc for old in ['fuer', 'hoechst', 'zustaendig', 'Enthaelt', 'Kapazitaet', 'waehlbar', 'abschliess']):
+            new_desc = desc
+            replacements = [
+                ('Fuer', 'Für'), ('fuer', 'für'),
+                ('hoechsten', 'höchsten'), ('zustaendigen', 'zuständigen'),
+                ('Enthaelt', 'Enthält'), ('Kapazitaet', 'Kapazität'),
+                ('waehlbar', 'wählbar'), ('abschliessender', 'abschließender'),
+            ]
+            for old, new in replacements:
+                new_desc = new_desc.replace(old, new)
+            if new_desc != desc:
+                conn.execute("UPDATE product_templates SET description = ? WHERE id = ?", (new_desc, t['id']))
+        new_title = title.replace('Anschluesse', 'Anschlüsse')
+        if new_title != title:
+            conn.execute("UPDATE product_templates SET title = ? WHERE id = ?", (new_title, t['id']))
+    conn.commit()
+
+
+def _migrate_product_prices(conn):
+    """Update product template prices for Installation, Elektro, Elektromaterialien, Wechselrichter."""
+    # Only run once: check if Elektrische Anschlüsse already has a price
+    row = conn.execute(
+        "SELECT price_1_slot FROM product_templates WHERE title LIKE '%Elektrische Anschl%'"
+    ).fetchone()
+    if row and row['price_1_slot'] is not None and row['price_1_slot'] > 0:
+        return  # already migrated
+
+    # Elektrische Anschlüsse und Inbetriebnahme: 3450 €
+    conn.execute("""UPDATE product_templates SET price_1_slot = 3450.00, price_2_slot = 3450.00
+        WHERE title LIKE '%Elektrische Anschl%'""")
+    # Installation der PV-Anlage: 1350 €
+    conn.execute("""UPDATE product_templates SET price_1_slot = 1350.00, price_2_slot = 1350.00
+        WHERE title LIKE '%Installation der PV%'""")
+    # Elektromaterialien: 950 €
+    conn.execute("""UPDATE product_templates SET price_1_slot = 950.00, price_2_slot = 950.00
+        WHERE title LIKE '%Elektromaterial%'""")
+    # Wechselrichter 1-Slot: 1098 €
+    conn.execute("""UPDATE product_templates SET price_1_slot = 1098.00
+        WHERE title = 'Wechselrichter' AND category = 'Komponenten'""")
+    conn.commit()
+
+
 def _seed_product_templates(conn):
     """Insert default product templates based on the carport/solar pricing.
 
     All carport prices are NETTO (brutto inkl. 20% MwSt / 1.20).
     Carport + Carport Installation = is_carport=1 (19% MwSt in DE).
     """
-    # (category, title, description, default_quantity,
+    # Tuple format: (category, title, description, default_quantity,
+    #  title_1_slot, title_2_slot, title_3_plus_title,
+    #  description_1_slot, description_2_slot, description_3_plus_desc,
+    #  quantity_1_slot, quantity_2_slot, quantity_3_plus_qty,
     #  price_1_slot, price_2_slot, price_3_plus, is_carport, sort_order)
     templates = [
         # ===================== CARPORT-MODELLE =====================
-        # Modell S - Selbstmontagefreundlich (hohe Schneelast 2,6 kN/m2)
         ('Carport', 'PV-Carport Modell S - Selbstmontagefreundlich',
-         'Fuer hohe Schneelasten bis 2,6 kN/m2. Selbstmontagefreundlich.',
-         '1x', 2150.00, None, '', 1, 1),
+         'Für hohe Schneelasten bis 2,6 kN/m2. Selbstmontagefreundlich.',
+         '1x', '', '', '', '', '', '', '', '', '',
+         2150.00, None, '', 1, 1),
 
-        # Modell S - inkl. PV-Module
         ('Carport', 'PV-Carport Modell S - inkl. 9 PV-Module',
-         'Inkl. 9 PV-Module. Fuer Schneelast bis 2,6 kN/m2.',
-         '1x', 2975.00, None, '', 1, 2),
+         'Inkl. 9 PV-Module. Für Schneelast bis 2,6 kN/m2.',
+         '1x', '', '', '', '', '', '', '', '', '',
+         2975.00, None, '', 1, 2),
 
-        # Modell S2 - 2 Stellplaetze
         ('Carport', 'PV-Carport Modell S2 - Selbstmontagefreundlich',
-         'Fuer Schneelasten bis 1,6 kN/m2. Selbstmontagefreundlich.',
-         '1x', None, 2541.67, '', 1, 3),
+         'Für Schneelasten bis 1,6 kN/m2. Selbstmontagefreundlich.',
+         '1x', '', '', '', '', '', '', '', '', '',
+         None, 2541.67, '', 1, 3),
 
-        # Modell 01 - Modernes Carport
         ('Carport', 'PV-Carport Modell 01 - Modernes Carport',
          'Modernes Carport-Design.',
-         '1x', 3590.00, 4404.17, 'Preis auf Anfrage', 1, 4),
+         '1x', '', '', '', '', '', '', '', '', '',
+         3590.00, 4404.17, 'Preis auf Anfrage', 1, 4),
 
-        # Modell 02 - Stabil & Wetterfest
         ('Carport', 'PV-Carport Modell 02 - Stabil & Wetterfest',
          'Stabile und wetterfeste Konstruktion.',
-         '1x', None, 3441.67, 'Preis auf Anfrage', 1, 5),
+         '1x', '', '', '', '', '', '', '', '', '',
+         None, 3441.67, 'Preis auf Anfrage', 1, 5),
 
-        # Modell 03 - Stabile Carport-Struktur
         ('Carport', 'PV-Carport Modell 03 - Stabile Carport-Struktur',
          'Stabile Carport-Struktur.',
-         '1x', 4025.00, None, '', 1, 6),
+         '1x', '', '', '', '', '', '', '', '', '',
+         4025.00, None, '', 1, 6),
 
-        # Modell 04 - Robustes Einzelcarport
         ('Carport', 'PV-Carport Modell 04 - Robustes Einzelcarport',
          'Robustes Einzelcarport.',
-         '1x', 3536.67, None, '', 1, 7),
+         '1x', '', '', '', '', '', '', '', '', '',
+         3536.67, None, '', 1, 7),
 
-        # Modell 05 - Robuste Konstruktion
         ('Carport', 'PV-Carport Modell 05 - Robuste Konstruktion',
          'Robuste Konstruktion.',
-         '1x', 2420.00, 3508.33, 'Preis auf Anfrage', 1, 8),
+         '1x', '', '', '', '', '', '', '', '', '',
+         2420.00, 3508.33, 'Preis auf Anfrage', 1, 8),
 
-        # Modell 06 - Carport-Konstruktion
         ('Carport', 'PV-Carport Modell 06 - Carport-Konstruktion',
          'Carport-Konstruktion.',
-         '1x', 2640.00, 3912.50, 'Preis auf Anfrage', 1, 9),
+         '1x', '', '', '', '', '', '', '', '', '',
+         2640.00, 3912.50, 'Preis auf Anfrage', 1, 9),
 
-        # Modell 07 - Robustes Carport
         ('Carport', 'PV-Carport 07 - Robustes Carport',
          'Robustes Carport.',
-         '1x', 2550.00, None, '', 1, 10),
+         '1x', '', '', '', '', '', '', '', '', '',
+         2550.00, None, '', 1, 10),
 
         # ===================== INSTALLATION =====================
-        # Carport Installation (is_carport=1, da 19% MwSt in DE)
         ('Installation', 'Carport Installation',
-         'Fachgerechte Montage der Carport Struktur inkl. stabiler Befestigung und abschliessender Endabnahme.',
-         '', 1450.00, 1650.00, 'Preis auf Anfrage', 1, 20),
+         'Fachgerechte Montage der Carport Struktur inkl. stabiler Befestigung und abschließender Endabnahme.',
+         '', '', '', '', '', '', '', '', '', '',
+         1450.00, 1650.00, 'Preis auf Anfrage', 1, 20),
 
-        # PV-Anlage Installation (kein Carport -> 0% in DE)
         ('Installation', 'Installation der PV-Anlage',
-         'Professionelle Installation und Verschaltung der PV-Module nach hoechsten Standards.',
-         '', None, None, 'Preis auf Anfrage', 0, 21),
+         'Professionelle Installation und Verschaltung der PV-Module nach höchsten Standards.',
+         '', '', '', '', '', '', '', '', '', '',
+         1350.00, 1350.00, 'Preis auf Anfrage', 0, 21),
 
-        # Elektrische Anschluesse und Inbetriebnahme
-        ('Installation', 'Elektrische Anschluesse und Inbetriebnahme',
+        ('Installation', 'Elektrische Anschlüsse und Inbetriebnahme',
          'Installation und Anschluss des Wechselrichters, des Batteriespeichers, '
          'der DC-AC-Leitung sowie des Potentialausgleichs und des PV-Abgangsverteilers. '
          'Dies beinhaltet auch die Inbetriebnahme der Anlage und die offizielle Meldung '
-         'beim zustaendigen Energieversorger.',
-         '', None, None, 'Preis auf Anfrage', 0, 22),
+         'beim zuständigen Energieversorger.',
+         '', '', '', '', '', '', '', '', '', '',
+         3450.00, 3450.00, 'Preis auf Anfrage', 0, 22),
 
-        # Montage und Anschlussarbeiten
         ('Installation', 'Montage und Anschlussarbeiten',
-         'Professionelle Installation und Verschaltung der PV-Module nach hoechsten Standards, '
-         'sodass sie optimal fuer den weiteren elektrischen Anschluss vorbereitet sind.',
-         '', None, None, 'Preis auf Anfrage', 0, 23),
+         'Professionelle Installation und Verschaltung der PV-Module nach höchsten Standards, '
+         'sodass sie optimal für den weiteren elektrischen Anschluss vorbereitet sind.',
+         '', '', '', '', '', '', '', '', '', '',
+         None, None, 'Preis auf Anfrage', 0, 23),
 
         # ===================== KOMPONENTEN =====================
         ('Komponenten', 'PV-Module',
-         'Solarmodule fuer Carport-Dach.',
-         '', 990.00, 1450.00, 'Preis auf Anfrage', 0, 30),
+         'Solarmodule für Carport-Dach.',
+         '', '', '', '', '', '', '',
+         '9x', '15x', '24x',
+         990.00, 1450.00, 'Preis auf Anfrage', 0, 30),
 
+        # Wechselrichter: slot-specific titles & descriptions
         ('Komponenten', 'Wechselrichter',
-         'Wechselrichter fuer die Umwandlung von Gleich- in Wechselstrom.',
-         '1x', 1350.00, 1550.00, 'Preis auf Anfrage', 0, 31),
+         'Hybrid-Wechselrichter mit intelligenter Energiesteuerung und Batteriespeicher-Kompatibilität.',
+         '1x',
+         'GoodWe GW6.5KN-ET PLUS+ Hybrid-Wechselrichter',
+         'GoodWe GW8KN-ET PLUS+ Hybrid Wechselrichter',
+         '',
+         'Effizienter Hybrid-Wechselrichter mit intelligenter Energiesteuerung und Batteriespeicher-Kompatibilität für maximale Eigenverbrauchsoptimierung.',
+         'Notstromfähig, lüfterlos und geräuscharm ausgestattet mit zwei MPP-Trackern (2 MPPT).',
+         '',
+         '', '', '',
+         1098.00, 1211.00, 'Preis auf Anfrage', 0, 31),
 
-        ('Komponenten', 'Batteriespeicher',
-         'Batteriespeicher (Kapazitaet waehlbar 0-100 kWh).',
-         '1x', None, None, 'Preis auf Anfrage', 0, 32),
+        # Batteriespeicher: 3 separate options (same price for all slots)
+        ('Komponenten', 'Pylontech Force H2 Batteriespeicher 7,1kWh',
+         'Modularer Hochvolt-Batteriespeicher mit 7,1 kWh Kapazität, stapelbarem Design und über 5.000 Ladezyklen für eine langlebige Eigenverbrauchsoptimierung.',
+         '1x', '', '', '', '', '', '', '', '', '',
+         2950.00, 2950.00, '', 0, 32),
+
+        ('Komponenten', 'Pylontech Force H2 Batteriespeicher 10,65kWh',
+         'LiFePO\u2084-Hochvolt-Speicher, IP55, >5000 Zyklen, 95 % DoD.',
+         '1x', '', '', '', '', '', '', '', '', '',
+         3458.00, 3458.00, '', 0, 33),
+
+        ('Komponenten', 'Huawei LUNA2000-10-S0 Batterie - 10kWh Speicherpaket',
+         'Hochvolt-Batteriespeicher mit 10 kWh Kapazität.',
+         '1x', '', '', '', '', '', '', '', '', '',
+         4050.00, 4050.00, '', 0, 34),
 
         ('Komponenten', 'Elektromaterialien inkl. PV Abgangsverteiler',
-         'Enthaelt: MC4-Stecker, Solarkabel, Rohr, Befestigungsmaterial sowie Komponenten '
-         'fuer den PV-Abgangsverteiler (Fehlerstromschutzschalter, Leitungsschutzschalter, '
+         'Enthält: MC4-Stecker, Solarkabel, Rohr, Befestigungsmaterial sowie Komponenten '
+         'für den PV-Abgangsverteiler (Fehlerstromschutzschalter, Leitungsschutzschalter, '
          'Verdrahtungsmaterial).',
-         '', None, None, 'Preis auf Anfrage', 0, 33),
+         '', '', '', '', '', '', '', '', '', '',
+         950.00, 950.00, 'Preis auf Anfrage', 0, 35),
 
         # ===================== LIEFERUNG =====================
         ('Lieferung', 'Lieferung der angebotenen Positionen',
          'Transport und Anlieferung der im Angebot enthaltenen Komponenten per Spedition / '
          'auf Palette bis zur Bordsteinkante.',
-         '', None, None, '', 0, 40),
+         '', '', '', '', '', '', '', '', '', '',
+         None, None, '', 0, 40),
     ]
     for t in templates:
         conn.execute('''
             INSERT INTO product_templates (category, title, description, default_quantity,
+                title_1_slot, title_2_slot, title_3_plus_title,
+                description_1_slot, description_2_slot, description_3_plus_desc,
+                quantity_1_slot, quantity_2_slot, quantity_3_plus_qty,
                 price_1_slot, price_2_slot, price_3_plus, is_carport, sort_order)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', t)
     conn.commit()
 
@@ -280,17 +605,19 @@ def create_quote(data, items):
     now = datetime.now().isoformat()
     cursor = conn.execute('''
         INSERT INTO quotes (quote_number, date, valid_until, country,
-            customer_name, customer_company, customer_street, customer_zip,
+            customer_salutation, customer_name, customer_company, customer_street, customer_zip,
             customer_city, customer_country_label, customer_phone, customer_email,
-            project_name, project_description, creator_name, notes, custom_terms,
+            customer_uid, project_name, project_description, creator_name, notes, custom_terms,
             created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         data['quote_number'], data['date'], data['valid_until'], data['country'],
+        data.get('customer_salutation', ''),
         data['customer_name'], data.get('customer_company', ''),
         data.get('customer_street', ''), data.get('customer_zip', ''),
         data.get('customer_city', ''), data.get('customer_country_label', ''),
         data.get('customer_phone', ''), data.get('customer_email', ''),
+        data.get('customer_uid', ''),
         data.get('project_name', ''), data.get('project_description', ''),
         data.get('creator_name', ''), data.get('notes', ''),
         data.get('custom_terms', ''), now, now
@@ -299,14 +626,16 @@ def create_quote(data, items):
 
     for i, item in enumerate(items):
         conn.execute('''
-            INSERT INTO quote_items (quote_id, position, title, description, quantity, total_price, is_carport)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO quote_items (quote_id, position, title, description, quantity, total_price, is_carport, is_optional, is_richtpreis)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             quote_id, i + 1, item.get('title', ''),
             item.get('description', ''),
             item.get('quantity', '1x'),
             float(item.get('total_price', 0) or 0),
-            int(item.get('is_carport', 0))
+            int(item.get('is_carport', 0)),
+            int(item.get('is_optional', 0)),
+            int(item.get('is_richtpreis', 0))
         ))
 
     conn.commit()
@@ -339,17 +668,19 @@ def update_quote(quote_id, data, items):
     now = datetime.now().isoformat()
     conn.execute('''
         UPDATE quotes SET date=?, valid_until=?, country=?,
-            customer_name=?, customer_company=?, customer_street=?, customer_zip=?,
+            customer_salutation=?, customer_name=?, customer_company=?, customer_street=?, customer_zip=?,
             customer_city=?, customer_country_label=?, customer_phone=?, customer_email=?,
-            project_name=?, project_description=?, creator_name=?, notes=?, custom_terms=?,
+            customer_uid=?, project_name=?, project_description=?, creator_name=?, notes=?, custom_terms=?,
             updated_at=?
         WHERE id=?
     ''', (
         data['date'], data['valid_until'], data['country'],
+        data.get('customer_salutation', ''),
         data['customer_name'], data.get('customer_company', ''),
         data.get('customer_street', ''), data.get('customer_zip', ''),
         data.get('customer_city', ''), data.get('customer_country_label', ''),
         data.get('customer_phone', ''), data.get('customer_email', ''),
+        data.get('customer_uid', ''),
         data.get('project_name', ''), data.get('project_description', ''),
         data.get('creator_name', ''), data.get('notes', ''),
         data.get('custom_terms', ''), now, quote_id
@@ -359,14 +690,16 @@ def update_quote(quote_id, data, items):
     conn.execute("DELETE FROM quote_items WHERE quote_id = ?", (quote_id,))
     for i, item in enumerate(items):
         conn.execute('''
-            INSERT INTO quote_items (quote_id, position, title, description, quantity, total_price, is_carport)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO quote_items (quote_id, position, title, description, quantity, total_price, is_carport, is_optional, is_richtpreis)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             quote_id, i + 1, item.get('title', ''),
             item.get('description', ''),
             item.get('quantity', '1x'),
             float(item.get('total_price', 0) or 0),
-            int(item.get('is_carport', 0))
+            int(item.get('is_carport', 0)),
+            int(item.get('is_optional', 0)),
+            int(item.get('is_richtpreis', 0))
         ))
 
     conn.commit()
@@ -401,10 +734,11 @@ def calculate_quote_totals(items, country):
     """
     netto = 0
     item_details = []
+    regular_pos = 0
 
     for item in items:
         price = float(item.get('total_price', 0) or 0)
-        netto += price
+        is_optional = int(item.get('is_optional', 0) or 0)
 
         if country == 'AT':
             vat_rate = 20.0
@@ -415,10 +749,19 @@ def calculate_quote_totals(items, country):
 
         vat_amount = price * (vat_rate / 100)
 
+        # Optionale Positionen nicht in Summe zählen und keine Positionsnummer
+        if not is_optional:
+            netto += price
+            regular_pos += 1
+            display_pos = regular_pos
+        else:
+            display_pos = None
+
         item_details.append({
             **item,
+            'display_position': display_pos,
             'vat_rate': vat_rate,
-            'vat_amount': vat_amount,
+            'vat_amount': vat_amount if not is_optional else 0,
         })
 
     vat_total = sum(i['vat_amount'] for i in item_details)
@@ -451,13 +794,25 @@ def create_product_template(data):
     conn = get_db()
     cursor = conn.execute('''
         INSERT INTO product_templates (category, title, description, default_quantity,
+            title_1_slot, title_2_slot, title_3_plus_title,
+            description_1_slot, description_2_slot, description_3_plus_desc,
+            quantity_1_slot, quantity_2_slot, quantity_3_plus_qty,
             price_1_slot, price_2_slot, price_3_plus, is_carport, sort_order)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         data.get('category', ''),
         data.get('title', ''),
         data.get('description', ''),
         data.get('default_quantity', '1x'),
+        data.get('title_1_slot', ''),
+        data.get('title_2_slot', ''),
+        data.get('title_3_plus_title', ''),
+        data.get('description_1_slot', ''),
+        data.get('description_2_slot', ''),
+        data.get('description_3_plus_desc', ''),
+        data.get('quantity_1_slot', ''),
+        data.get('quantity_2_slot', ''),
+        data.get('quantity_3_plus_qty', ''),
         float(data['price_1_slot']) if data.get('price_1_slot') else None,
         float(data['price_2_slot']) if data.get('price_2_slot') else None,
         data.get('price_3_plus', ''),
@@ -474,6 +829,9 @@ def update_product_template(template_id, data):
     conn = get_db()
     conn.execute('''
         UPDATE product_templates SET category=?, title=?, description=?, default_quantity=?,
+            title_1_slot=?, title_2_slot=?, title_3_plus_title=?,
+            description_1_slot=?, description_2_slot=?, description_3_plus_desc=?,
+            quantity_1_slot=?, quantity_2_slot=?, quantity_3_plus_qty=?,
             price_1_slot=?, price_2_slot=?, price_3_plus=?, is_carport=?, sort_order=?
         WHERE id=?
     ''', (
@@ -481,6 +839,15 @@ def update_product_template(template_id, data):
         data.get('title', ''),
         data.get('description', ''),
         data.get('default_quantity', '1x'),
+        data.get('title_1_slot', ''),
+        data.get('title_2_slot', ''),
+        data.get('title_3_plus_title', ''),
+        data.get('description_1_slot', ''),
+        data.get('description_2_slot', ''),
+        data.get('description_3_plus_desc', ''),
+        data.get('quantity_1_slot', ''),
+        data.get('quantity_2_slot', ''),
+        data.get('quantity_3_plus_qty', ''),
         float(data['price_1_slot']) if data.get('price_1_slot') else None,
         float(data['price_2_slot']) if data.get('price_2_slot') else None,
         data.get('price_3_plus', ''),

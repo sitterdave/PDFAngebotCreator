@@ -7,6 +7,52 @@
     {{ 'Neues Angebot erstellen' if is_new else 'Angebot bearbeiten' }}
 </h2>
 
+{% if is_new %}
+<!-- Drag & Drop Overlay (wird über die ganze Seite gelegt) -->
+<div id="dropOverlay" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(13,110,253,0.15); border:4px dashed #0d6efd; pointer-events:none;">
+    <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; background:white; padding:2rem 3rem; border-radius:12px; box-shadow:0 4px 24px rgba(0,0,0,0.2);">
+        <i class="bi bi-envelope-arrow-down fs-1 text-primary"></i>
+        <p class="fw-bold text-primary mt-2 mb-0">E-Mail hier ablegen</p>
+    </div>
+</div>
+
+<!-- E-Mail Import -->
+<div class="card mb-4 border-primary" id="emailImportCard">
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-envelope-arrow-down"></i> Anfrage-E-Mail importieren</span>
+        <button type="button" class="btn btn-sm btn-light" id="toggleImportBtn">
+            <i class="bi bi-chevron-down"></i>
+        </button>
+    </div>
+    <div class="card-body" id="emailImportBody">
+        <div class="row g-3">
+            <div class="col-12">
+                <p class="text-muted mb-2">
+                    <i class="bi bi-mouse"></i> <strong>Outlook:</strong> E-Mail per Drag &amp; Drop auf die Seite ziehen
+                    &nbsp;|&nbsp;
+                    <i class="bi bi-clipboard"></i> <strong>Text:</strong> Unten einfügen und <em>Importieren</em> klicken
+                </p>
+            </div>
+            <div class="col-12">
+                <textarea id="emailTextArea" class="form-control mb-2" rows="5"
+                          placeholder="Hier den kompletten E-Mail-Text einfügen (Strg+V)..."></textarea>
+            </div>
+            <div class="col-12">
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-primary" id="emailImportBtn">
+                        <i class="bi bi-magic"></i> Importieren
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="emailClearBtn">
+                        <i class="bi bi-x-lg"></i> Leeren
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div id="emailParseResult" class="mt-2" style="display: none;"></div>
+    </div>
+</div>
+{% endif %}
+
 <form method="post" action="{{ url_for('save_quote') }}" id="quoteForm">
     {% if not is_new %}
         <input type="hidden" name="quote_id" value="{{ quote.id }}">
@@ -29,7 +75,7 @@
                     <input type="date" name="date" class="form-control" value="{{ quote.date }}">
                 </div>
                 <div class="col-md-2">
-                    <label class="form-label">Gueltig bis</label>
+                    <label class="form-label">Gültig bis</label>
                     <input type="date" name="valid_until" class="form-control" value="{{ quote.valid_until }}">
                 </div>
                 <div class="col-md-2">
@@ -48,14 +94,22 @@
         </div>
     </div>
 
-    <!-- Kundendaten (Empfaenger) -->
+    <!-- Kundendaten (Empfänger) -->
     <div class="card mb-4">
         <div class="card-header bg-teal text-white">
-            <i class="bi bi-person"></i> Empfaenger
+            <i class="bi bi-person"></i> Empfänger
         </div>
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-md-6">
+                <div class="col-md-2">
+                    <label class="form-label">Anrede</label>
+                    <select name="customer_salutation" class="form-select">
+                        <option value="" {% if not quote.customer_salutation %}selected{% endif %}>–</option>
+                        <option value="Herr" {% if quote.customer_salutation == 'Herr' %}selected{% endif %}>Herr</option>
+                        <option value="Frau" {% if quote.customer_salutation == 'Frau' %}selected{% endif %}>Frau</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
                     <label class="form-label">Name *</label>
                     <input type="text" name="customer_name" class="form-control"
                            value="{{ quote.customer_name }}" required>
@@ -66,7 +120,7 @@
                            value="{{ quote.customer_company }}">
                 </div>
                 <div class="col-md-5">
-                    <label class="form-label">Strasse</label>
+                    <label class="form-label">Straße</label>
                     <input type="text" name="customer_street" class="form-control"
                            value="{{ quote.customer_street }}">
                 </div>
@@ -83,17 +137,22 @@
                 <div class="col-md-2">
                     <label class="form-label">Land (Text)</label>
                     <input type="text" name="customer_country_label" class="form-control"
-                           value="{{ quote.customer_country_label }}" placeholder="Oesterreich">
+                           value="{{ quote.customer_country_label }}" placeholder="Österreich">
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label">Telefon</label>
                     <input type="text" name="customer_phone" class="form-control"
                            value="{{ quote.customer_phone }}">
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label">E-Mail</label>
                     <input type="email" name="customer_email" class="form-control"
                            value="{{ quote.customer_email }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">UID (USt-IdNr.)</label>
+                    <input type="text" name="customer_uid" class="form-control"
+                           value="{{ quote.customer_uid }}" placeholder="z.B. ATU12345678">
                 </div>
             </div>
         </div>
@@ -117,14 +176,25 @@
                 <table class="table table-sm mb-0" id="itemsTable">
                     <thead class="table-secondary">
                         <tr>
+                            <th style="width: 30px"></th>
                             <th style="width: 45px">Pos</th>
                             <th>Titel</th>
                             <th>Beschreibung</th>
                             <th style="width: 80px">Menge</th>
                             <th style="width: 120px">Gesamtkosten &euro;</th>
                             <th style="width: 60px" id="carportColHeader">
-                                <span title="Deutschland: Carport = 19% MwSt, Rest = 0%. Oesterreich: immer 20%.">
+                                <span title="Deutschland: Carport = 19% MwSt, Rest = 0%. Österreich: immer 20%.">
                                     Carport?
+                                </span>
+                            </th>
+                            <th style="width: 65px">
+                                <span title="Optionale Position: wird im Angebot angezeigt aber nicht in die Summe gerechnet">
+                                    Optional?
+                                </span>
+                            </th>
+                            <th style="width: 65px">
+                                <span title="Richtpreis: Endgültiger Preis wird nach technischer Besichtigung festgelegt">
+                                    Richtpreis?
                                 </span>
                             </th>
                             <th style="width: 40px"></th>
@@ -132,7 +202,8 @@
                     </thead>
                     <tbody id="itemsBody">
                         {% for item in items %}
-                        <tr class="item-row" data-index="{{ loop.index0 }}">
+                        <tr class="item-row" data-index="{{ loop.index0 }}" draggable="true">
+                            <td class="align-middle text-center drag-handle" style="cursor: grab; color: #999;"><i class="bi bi-grip-vertical"></i></td>
                             <td class="align-middle text-center pos-number">{{ loop.index }}</td>
                             <td>
                                 <input type="text" name="item_title_{{ loop.index0 }}"
@@ -159,6 +230,16 @@
                                        class="form-check-input item-carport" value="1"
                                        {{ 'checked' if item.is_carport }}>
                             </td>
+                            <td class="text-center">
+                                <input type="checkbox" name="item_is_optional_{{ loop.index0 }}"
+                                       class="form-check-input item-optional" value="1"
+                                       {{ 'checked' if item.is_optional }}>
+                            </td>
+                            <td class="text-center">
+                                <input type="checkbox" name="item_is_richtpreis_{{ loop.index0 }}"
+                                       class="form-check-input item-richtpreis" value="1"
+                                       {{ 'checked' if item.is_richtpreis }}>
+                            </td>
                             <td>
                                 <button type="button" class="btn btn-sm btn-outline-danger remove-item-btn">
                                     <i class="bi bi-trash"></i>
@@ -171,7 +252,7 @@
             </div>
         </div>
         <div class="card-footer">
-            <div class="row justify-content-end">
+            <div class="row justify-content-center">
                 <div class="col-md-4">
                     <table class="table table-sm mb-0">
                         <tr>
@@ -182,7 +263,7 @@
                             <td>MwSt:</td>
                             <td class="text-end" id="vatTotal">0,00 &euro;</td>
                         </tr>
-                        <tr class="fw-bold" style="background-color: var(--teal); color: white;">
+                        <tr class="fw-bold" style="background-color: var(--brand); color: white;">
                             <td>Summe brutto:</td>
                             <td class="text-end" id="grandTotal">0,00 &euro;</td>
                         </tr>
@@ -192,15 +273,15 @@
         </div>
     </div>
 
-    <!-- AGB / Zusaetzliche Angebotsinformationen -->
+    <!-- AGB / Zusätzliche Angebotsinformationen -->
     <div class="card mb-4">
         <div class="card-header bg-teal text-white">
-            <i class="bi bi-file-text"></i> Zusaetzliche Angebotsinformationen (Seite 2 im PDF)
+            <i class="bi bi-file-text"></i> Zusätzliche Angebotsinformationen (Seite 2 im PDF)
         </div>
         <div class="card-body">
-            <textarea name="custom_terms" class="form-control" rows="8"
+            <textarea name="custom_terms" class="form-control" rows="14"
                       placeholder="Zahlungsbedingungen, Konditionen, Hinweise...">{{ quote.custom_terms }}</textarea>
-            <small class="text-muted">Dieser Text erscheint auf Seite 2 des PDFs mit Unterschriftenfeld.</small>
+            <small class="text-muted">Dieser Text erscheint auf Seite 2 des PDFs mit Unterschriftenfeld. Der Standardtext kommt aus den Einstellungen.</small>
         </div>
     </div>
 
@@ -224,36 +305,56 @@
         </a>
     </div>
 </form>
-{% endblock %}
 
 <!-- Product Template Modal -->
 <div class="modal fade" id="productModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header bg-teal text-white">
-                <h5 class="modal-title"><i class="bi bi-box-seam"></i> Produktvorlage einfuegen</h5>
+                <h5 class="modal-title"><i class="bi bi-box-seam"></i> Produktvorlage einfügen</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <div class="mb-3">
-                    <label class="form-label">Anzahl Stellplaetze (fuer Preisauswahl)</label>
-                    <select class="form-select" id="slotCount">
-                        <option value="1">1 Stellplatz</option>
-                        <option value="2" selected>2 Stellplaetze</option>
-                        <option value="3">3+ Stellplaetze</option>
-                    </select>
+                <!-- Step 1: Stellplatz-Auswahl -->
+                <div id="slotSelectionStep">
+                    <p class="text-muted mb-3">Für wie viele Stellplätze ist das Angebot?</p>
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-outline-primary slot-select-btn" data-slots="1">
+                            <i class="bi bi-car-front"></i> 1 Stellplatz
+                        </button>
+                        <button type="button" class="btn btn-outline-primary slot-select-btn" data-slots="2">
+                            <i class="bi bi-car-front me-1"></i><i class="bi bi-car-front"></i> 2 Stellplätze
+                        </button>
+                        <button type="button" class="btn btn-outline-primary slot-select-btn" data-slots="3">
+                            <i class="bi bi-car-front me-1"></i><i class="bi bi-car-front me-1"></i><i class="bi bi-car-front"></i> 3+ Stellplätze
+                        </button>
+                    </div>
                 </div>
-                <div id="productList">
-                    <p class="text-muted">Lade Vorlagen...</p>
+                <!-- Step 2: Produkt-Liste (zunächst versteckt) -->
+                <div id="productSelectionStep" style="display: none;">
+                    <div class="d-flex align-items-center mb-3">
+                        <button type="button" class="btn btn-sm btn-outline-secondary me-2" id="backToSlotBtn">
+                            <i class="bi bi-arrow-left"></i> Zurück
+                        </button>
+                        <span class="badge bg-primary fs-6" id="selectedSlotBadge"></span>
+                    </div>
+                    <input type="hidden" id="slotCount" value="2">
+                    <div id="productList">
+                        <p class="text-muted">Lade Vorlagen...</p>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schliessen</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schließen</button>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/quote_form.js') }}"></script>
+<script src="{{ url_for('static', filename='js/quote_form.js') }}?v=5"></script>
+{% if is_new %}
+<script src="{{ url_for('static', filename='js/email_import.js') }}?v=10"></script>
+{% endif %}
 {% endblock %}

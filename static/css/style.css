@@ -1,13 +1,13 @@
-/* Teal accent color matching the Stromsparen24 brand */
+/* Blue accent color for Stromsparen24 brand */
 :root {
-    --teal: #009788;
-    --teal-dark: #00796b;
-    --teal-light: #b2dfdb;
+    --brand: #1976D2;
+    --brand-dark: #1565C0;
+    --brand-light: #BBDEFB;
 }
 
 /* Navbar */
 .navbar {
-    background-color: var(--teal) !important;
+    background-color: var(--brand) !important;
 }
 
 .navbar-brand {
@@ -16,35 +16,35 @@
 
 /* Cards */
 .bg-teal {
-    background-color: var(--teal) !important;
+    background-color: var(--brand) !important;
     color: white;
 }
 
 .btn-teal {
-    background-color: var(--teal);
-    border-color: var(--teal);
+    background-color: var(--brand);
+    border-color: var(--brand);
     color: white;
 }
 
 .btn-teal:hover {
-    background-color: var(--teal-dark);
-    border-color: var(--teal-dark);
+    background-color: var(--brand-dark);
+    border-color: var(--brand-dark);
     color: white;
 }
 
 .badge.bg-teal {
-    background-color: var(--teal) !important;
+    background-color: var(--brand) !important;
 }
 
-/* Table with teal header */
+/* Table with blue header */
 .table-teal {
-    background-color: var(--teal);
+    background-color: var(--brand);
     color: white;
 }
 
 .table-teal th {
     color: white;
-    border-color: var(--teal);
+    border-color: var(--brand);
 }
 
 /* Items table in quote form */
@@ -58,7 +58,7 @@
 
 /* Footer */
 footer {
-    background-color: var(--teal) !important;
+    background-color: var(--brand) !important;
 }
 
 /* Flash messages */
@@ -80,12 +80,12 @@ footer {
 /* Position numbers */
 .pos-number {
     font-weight: bold;
-    color: var(--teal);
+    color: var(--brand);
 }
 
 /* Totals row */
 .totals-row {
-    background-color: var(--teal);
+    background-color: var(--brand);
     color: white;
     font-weight: bold;
 }
@@ -99,11 +99,11 @@ footer {
 
 /* Make the quote view table match the PDF style */
 .quote-view-table th {
-    background-color: var(--teal);
+    background-color: var(--brand);
     color: white;
 }
 
 /* Hover effect for quote list */
 .table-hover tbody tr:hover {
-    background-color: var(--teal-light);
+    background-color: var(--brand-light);
 }

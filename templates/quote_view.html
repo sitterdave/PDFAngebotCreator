@@ -19,18 +19,32 @@
                 <i class="bi bi-copy"></i> Duplizieren
             </button>
         </form>
+        {% if quote.customer_email %}
+        <div class="btn-group">
+            <a href="#" id="mailto-btn" class="btn btn-outline-success">
+                <i class="bi bi-envelope"></i> Per Mail senden
+            </a>
+            <button type="button" class="btn btn-outline-success dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+                <span class="visually-hidden">Weitere Mail-Vorlagen</span>
+            </button>
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="#" id="mailto-schneelast-btn"><i class="bi bi-snow"></i> Schneelast zu hoch</a></li>
+                <li><a class="dropdown-item" href="#" id="mailto-s-modell-btn"><i class="bi bi-building"></i> S-Modell</a></li>
+            </ul>
+        </div>
+        {% endif %}
     </div>
 </div>
 
 <div class="row g-4">
     <!-- Left column: Quote details -->
     <div class="col-md-8">
-        <!-- Two-column: Empfaenger / Ersteller -->
+        <!-- Two-column: Empfänger / Ersteller -->
         <div class="row g-4 mb-4">
             <div class="col-md-6">
                 <div class="card h-100">
                     <div class="card-header bg-teal text-white">
-                        <i class="bi bi-person"></i> Empfaenger
+                        <i class="bi bi-person"></i> Empfänger
                     </div>
                     <div class="card-body">
                         {% if quote.customer_company %}
@@ -42,6 +56,7 @@
                             {{ quote.customer_zip }} {{ quote.customer_city }}<br>
                         {% endif %}
                         {% if quote.customer_country_label %}{{ quote.customer_country_label }}<br>{% endif %}
+                        {% if quote.customer_uid %}UID: {{ quote.customer_uid }}<br>{% endif %}
                     </div>
                 </div>
             </div>
@@ -56,7 +71,7 @@
                         {% if settings.company_street %}
                             {{ settings.company_zip }} {{ settings.company_city }} {{ settings.company_street }}<br>
                         {% endif %}
-                        {% if settings.company_ust_id %}UID: {{ settings.company_ust_id }}{% endif %}
+                        {% if settings.company_ust_id %}UID: {{ settings.company_ust_id }}<br>{% endif %}
                     </div>
                 </div>
             </div>
@@ -80,8 +95,9 @@
                         </thead>
                         <tbody>
                             {% for item in totals.positions %}
+                            {% if not item.is_optional %}
                             <tr>
-                                <td class="text-center">{{ item.position }}</td>
+                                <td class="text-center">{{ item.display_position }}</td>
                                 <td>
                                     {% if item.title %}<strong>{{ item.title }}</strong><br>{% endif %}
                                     <span class="text-muted">{{ item.description }}</span>
@@ -92,13 +108,34 @@
                                 <td class="text-center">{{ item.quantity }}</td>
                                 <td class="text-end">{{ "%.2f"|format(item.total_price|float) }}</td>
                             </tr>
+                            {% endif %}
                             {% endfor %}
                         </tbody>
+                        {% set optional_items = totals.positions|selectattr('is_optional')|list %}
+                        {% if optional_items %}
+                        <tbody>
+                            <tr class="table-warning">
+                                <td colspan="4" class="fw-bold"><i class="bi bi-info-circle"></i> Optionale Positionen</td>
+                            </tr>
+                            {% for item in optional_items %}
+                            <tr class="table-warning" style="opacity: 0.85;">
+                                <td class="text-center">&ndash;</td>
+                                <td>
+                                    {% if item.title %}<strong>{{ item.title }}</strong><br>{% endif %}
+                                    <span class="text-muted">{{ item.description }}</span>
+                                    <span class="badge bg-warning text-dark ms-1">Optional</span>
+                                </td>
+                                <td class="text-center">{{ item.quantity }}</td>
+                                <td class="text-end">{{ "%.2f"|format(item.total_price|float) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        {% endif %}
                     </table>
                 </div>
             </div>
             <div class="card-footer">
-                <div class="row justify-content-end">
+                <div class="row justify-content-center">
                     <div class="col-md-5">
                         <table class="table table-sm mb-0">
                             <tr>
@@ -151,14 +188,14 @@
                         <td>{{ quote.date }}</td>
                     </tr>
                     <tr>
-                        <td class="text-muted">Gueltig bis:</td>
+                        <td class="text-muted">Gültig bis:</td>
                         <td>{{ quote.valid_until }}</td>
                     </tr>
                     <tr>
                         <td class="text-muted">Land:</td>
                         <td>
                             <span class="badge {{ 'bg-primary' if quote.country == 'DE' else 'bg-teal' }}">
-                                {{ 'Deutschland' if quote.country == 'DE' else 'Oesterreich' }}
+                                {{ 'Deutschland' if quote.country == 'DE' else 'Österreich' }}
                             </span>
                         </td>
                     </tr>
@@ -197,13 +234,189 @@
         <div class="card border-danger">
             <div class="card-body">
                 <form method="post" action="{{ url_for('delete_quote_route', quote_id=quote.id) }}"
-                      onsubmit="return confirm('Angebot wirklich loeschen?')">
+                      onsubmit="return confirm('Angebot wirklich löschen?')">
                     <button type="submit" class="btn btn-outline-danger w-100">
-                        <i class="bi bi-trash"></i> Angebot loeschen
+                        <i class="bi bi-trash"></i> Angebot löschen
                     </button>
                 </form>
             </div>
         </div>
     </div>
 </div>
+
+{% if quote.customer_email %}
+<script>
+// Prüfen ob ein S-Modell Produkt im Angebot ist
+var hasSModell = false;
+{% for item in totals.positions %}
+{% if 'Modell S' in item.title %}
+hasSModell = true;
+{% endif %}
+{% endfor %}
+
+document.getElementById('mailto-btn').addEventListener('click', function(e) {
+    e.preventDefault();
+
+    // Wenn S-Modell erkannt: automatisch S-Modell Vorlage verwenden
+    if (hasSModell) {
+        document.getElementById('mailto-s-modell-btn').click();
+        return;
+    }
+
+    var email = {{ quote.customer_email|tojson }};
+    var customerName = {{ quote.customer_name|tojson }};
+    var lastName = customerName.trim().split(/\s+/).pop();
+    var salutation = {{ (quote.customer_salutation or '')|tojson }};
+    var quoteNumber = {{ quote.quote_number|tojson }};
+
+    // Carport-Modell aus Items ermitteln
+    var carportModel = '';
+    {% for item in totals.positions %}
+    {% if item.is_carport %}
+    carportModel = {{ item.title|tojson }};
+    {% endif %}
+    {% endfor %}
+
+    // Anrede: "Sehr geehrter Herr Müller" / "Sehr geehrte Frau Müller" (nur Nachname)
+    var anrede;
+    if (salutation === 'Herr') {
+        anrede = 'Sehr geehrter Herr ' + lastName;
+    } else if (salutation === 'Frau') {
+        anrede = 'Sehr geehrte Frau ' + lastName;
+    } else {
+        anrede = 'Sehr geehrte/r ' + lastName;
+    }
+
+    var betreff = 'Ihr Angebot Nr. ' + quoteNumber + ' | Stromsparen24';
+
+    var text = anrede + ',\n\n'
+        + 'im Anhang finden Sie Ihr persönliches Angebot für das gewünschte Carport.'
+        + '\n\n'
+        + 'Besonders hervorheben möchte ich, dass wir Ihnen das Carport inklusive K2-Material auf Wunsch ohne Aufpreis in einer RAL-Farbe Ihrer Wahl elektrostatisch pulverbeschichten können. Die feinmatte Oberfläche verleiht dem Carport nicht nur eine besonders edle Optik, sondern sorgt auch für eine lange Lebensdauer und höchste Widerstandsfähigkeit.\n\n'
+        + 'Zur Auswahl stehen Ihnen folgende RAL-Farben:\n'
+        + '• RAL 9005 – Tiefschwarz\n'
+        + '• RAL 7016 – Anthrazitgrau\n'
+        + '• RAL 8017 – Schokoladenbraun\n'
+        + '• RAL 7021 – Schwarzgrau\n'
+        + '• RAL 8019 – Graubraun\n'
+        + '• RAL 6005 – Moosgrün\n\n'
+        + 'Falls Sie eine andere RAL-Farbe bevorzugen, lassen Sie es mich gerne wissen – wir finden gemeinsam eine Lösung.\n\n'
+        + 'Bei Fragen einfach melden.\n\n'
+        + 'Mit freundlichen Grüßen\n'
+        + 'David Sitter\n\n'
+        + 'Stromsparen24.at\n'
+        + 'Labsupport GmbH & CO KG\n'
+        + 'UID ATU69952367, FN: 440720v\n'
+        + 'office@stromsparen24.at / 06603118004';
+
+    window.location.href = 'mailto:' + encodeURIComponent(email)
+        + '?subject=' + encodeURIComponent(betreff)
+        + '&body=' + encodeURIComponent(text);
+});
+
+document.getElementById('mailto-schneelast-btn').addEventListener('click', function(e) {
+    e.preventDefault();
+
+    var email = {{ quote.customer_email|tojson }};
+    var customerName = {{ quote.customer_name|tojson }};
+    var lastName = customerName.trim().split(/\s+/).pop();
+    var salutation = {{ (quote.customer_salutation or '')|tojson }};
+    var quoteNumber = {{ quote.quote_number|tojson }};
+
+    // Carport-Modell aus Items ermitteln
+    var carportModel = '';
+    {% for item in totals.positions %}
+    {% if item.is_carport %}
+    carportModel = {{ item.title|tojson }};
+    {% endif %}
+    {% endfor %}
+
+    // Anrede (nur Nachname)
+    var anrede;
+    if (salutation === 'Herr') {
+        anrede = 'Sehr geehrter Herr ' + lastName;
+    } else if (salutation === 'Frau') {
+        anrede = 'Sehr geehrte Frau ' + lastName;
+    } else {
+        anrede = 'Sehr geehrte/r ' + lastName;
+    }
+
+    var betreff = 'Ihr Angebot Nr. ' + quoteNumber + ' | Schneelast-Hinweis | Stromsparen24';
+
+    var text = anrede + ',\n\n'
+        + 'im Anhang finden Sie Ihr persönliches Angebot für das gewünschte Carport.'
+        + '\n\n'
+        + 'Bitte beachten Sie jedoch folgenden wichtigen Hinweis: Unser Carport ist statisch für eine maximale Schneelast von 128 kg/m² ausgelegt. Laut den Angaben aus dem HORA-System (siehe beigefügtes PDF) befindet sich Ihr Standort in einer Schneelastzone, die diesen Wert überschreitet.\n\n'
+        + 'Aus diesem Grund können wir die Installation vor Ort leider nicht durchführen, da wir in diesem Fall keine statische Gewährleistung übernehmen können.\n\n'
+        + 'Sollten Sie das Carport dennoch erwerben möchten, können wir es Ihnen selbstverständlich gerne liefern. Der Aufbau ist einfach konzipiert und kann problemlos in Eigenregie oder durch ein örtliches Montageteam durchgeführt werden.\n\n'
+        + 'Gerne möchten wir nochmals hervorheben, dass wir das Carport inklusive K2-Material auf Wunsch ohne Aufpreis in einer RAL-Farbe Ihrer Wahl elektrostatisch pulverbeschichten können. Die feinmatte Oberfläche sorgt für eine besonders hochwertige Optik sowie für eine langlebige und widerstandsfähige Beschichtung.\n\n'
+        + 'Zur Auswahl stehen folgende RAL-Farben:\n'
+        + '• RAL 9005 – Tiefschwarz\n'
+        + '• RAL 7016 – Anthrazitgrau\n'
+        + '• RAL 8017 – Schokoladenbraun\n'
+        + '• RAL 7021 – Schwarzgrau\n'
+        + '• RAL 8019 – Graubraun\n'
+        + '• RAL 6005 – Moosgrün\n\n'
+        + 'Sollten Sie eine andere RAL-Farbe wünschen, geben Sie uns gerne Bescheid – wir finden gemeinsam eine passende Lösung.\n\n'
+        + 'Für Rückfragen stehe ich Ihnen jederzeit gerne zur Verfügung.\n\n'
+        + 'Mit freundlichen Grüßen\n'
+        + 'David Sitter\n\n'
+        + 'Stromsparen24.at\n'
+        + 'Labsupport GmbH & Co KG\n'
+        + 'UID ATU69952367 | FN 440720v\n'
+        + 'office@stromsparen24.at\n'
+        + '0660 3118004';
+
+    window.location.href = 'mailto:' + encodeURIComponent(email)
+        + '?subject=' + encodeURIComponent(betreff)
+        + '&body=' + encodeURIComponent(text);
+});
+
+document.getElementById('mailto-s-modell-btn').addEventListener('click', function(e) {
+    e.preventDefault();
+
+    var email = {{ quote.customer_email|tojson }};
+    var customerName = {{ quote.customer_name|tojson }};
+    var lastName = customerName.trim().split(/\s+/).pop();
+    var salutation = {{ (quote.customer_salutation or '')|tojson }};
+    var quoteNumber = {{ quote.quote_number|tojson }};
+
+    // Anrede (nur Nachname)
+    var anrede;
+    if (salutation === 'Herr') {
+        anrede = 'Sehr geehrter Herr ' + lastName;
+    } else if (salutation === 'Frau') {
+        anrede = 'Sehr geehrte Frau ' + lastName;
+    } else {
+        anrede = 'Sehr geehrte/r ' + lastName;
+    }
+
+    var betreff = 'Ihr Angebot Nr. ' + quoteNumber + ' | Stromsparen24';
+
+    var text = anrede + ',\n\n'
+        + 'im Anhang finden Sie Ihr persönliches Angebot für das gewünschte PV-Carport.\n\n'
+        + 'Das angebotene System ist als modular aufgebaute Stahlkonstruktion konzipiert und eignet sich flexibel für unterschiedliche Stellplatzvarianten – vom Einzelstellplatz bis hin zu Mehrfachlösungen für mehrere Fahrzeuge. Die Konstruktion ist auf eine wirtschaftliche und effiziente Montage sowie auf eine langfristig stabile Nutzung ausgelegt.\n\n'
+        + 'Besonders hervorzuheben sind:\n'
+        + '• Modulares Erweiterungssystem – zukünftige Anpassungen oder Erweiterungen sind problemlos möglich\n'
+        + '• Korrosionsgeschützte Stahlkonstruktion mit hochwertiger Beschichtung für hohe Witterungsbeständigkeit\n'
+        + '• Durchdachtes Befestigungs- und Verbindungssystem für eine sichere Montage\n'
+        + '• Kompatibilität mit gängigen PV-Modulformaten\n'
+        + '• Doppelte Funktionalität: zuverlässiger Fahrzeugschutz und nachhaltige Energieerzeugung\n\n'
+        + 'Die Konstruktion wurde praxisnah entwickelt und ermöglicht eine strukturierte, nachvollziehbare Installation.\n\n'
+        + 'Für Rückfragen oder Anpassungswünsche stehe ich Ihnen jederzeit gerne zur Verfügung.\n\n'
+        + 'Mit freundlichen Grüßen\n'
+        + 'David Sitter\n\n'
+        + 'Stromsparen24.at\n'
+        + 'Labsupport GmbH & Co KG\n'
+        + 'UID: ATU69952367\n'
+        + 'FN: 440720v\n'
+        + 'office@stromsparen24.at\n'
+        + '0660 3118004';
+
+    window.location.href = 'mailto:' + encodeURIComponent(email)
+        + '?subject=' + encodeURIComponent(betreff)
+        + '&body=' + encodeURIComponent(text);
+});
+</script>
+{% endif %}
 {% endblock %}

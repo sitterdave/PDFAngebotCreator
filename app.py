@@ -1,4 +1,11 @@
 import os
+import json
+import email
+import re
+try:
+    import olefile
+except ImportError:
+    olefile = None
 from datetime import datetime, timedelta
 from flask import (
     Flask, render_template, request, redirect, url_for,
@@ -63,12 +70,13 @@ def new_quote():
         'date': today,
         'valid_until': valid_until,
         'country': default_country,
+        'customer_salutation': '',
         'customer_name': '',
         'customer_company': '',
         'customer_street': '',
         'customer_zip': '',
         'customer_city': '',
-        'customer_country_label': 'Oesterreich' if default_country == 'AT' else 'Deutschland',
+        'customer_country_label': 'Österreich' if default_country == 'AT' else 'Deutschland',
         'customer_phone': '',
         'customer_email': '',
         'project_name': '',
@@ -88,6 +96,7 @@ def save_quote():
         'date': request.form.get('date', ''),
         'valid_until': request.form.get('valid_until', ''),
         'country': request.form.get('country', 'AT'),
+        'customer_salutation': request.form.get('customer_salutation', ''),
         'customer_name': request.form.get('customer_name', ''),
         'customer_company': request.form.get('customer_company', ''),
         'customer_street': request.form.get('customer_street', ''),
@@ -96,6 +105,7 @@ def save_quote():
         'customer_country_label': request.form.get('customer_country_label', ''),
         'customer_phone': request.form.get('customer_phone', ''),
         'customer_email': request.form.get('customer_email', ''),
+        'customer_uid': request.form.get('customer_uid', ''),
         'project_name': request.form.get('project_name', ''),
         'project_description': request.form.get('project_description', ''),
         'creator_name': request.form.get('creator_name', ''),
@@ -139,7 +149,7 @@ def edit_quote(quote_id):
 @app.route('/quote/<int:quote_id>/delete', methods=['POST'])
 def delete_quote_route(quote_id):
     delete_quote(quote_id)
-    flash('Angebot geloescht.', 'success')
+    flash('Angebot gelöscht.', 'success')
     return redirect(url_for('index'))
 
 
@@ -310,7 +320,7 @@ def edit_product(product_id):
 @app.route('/products/<int:product_id>/delete', methods=['POST'])
 def delete_product_route(product_id):
     delete_product_template(product_id)
-    flash('Produktvorlage geloescht.', 'success')
+    flash('Produktvorlage gelöscht.', 'success')
     return redirect(url_for('product_list'))
 
 
@@ -321,12 +331,250 @@ def api_products():
     return jsonify(templates)
 
 
+@app.route('/api/parse-email', methods=['POST'])
+def api_parse_email():
+    """Parse an uploaded .eml/.msg file or plain text and extract customer data."""
+    text = ''
+
+    if 'file' in request.files:
+        f = request.files['file']
+        filename = f.filename or ''
+        raw = f.read()
+
+        if filename.lower().endswith('.msg'):
+            # Outlook .msg format (OLE2)
+            text = _parse_msg_file(raw)
+        else:
+            # .eml format (RFC822)
+            text = _parse_eml_file(raw)
+    else:
+        text = request.get_data(as_text=True)
+
+    if not text:
+        return jsonify({'error': 'Kein Text gefunden'}), 400
+
+    data = _parse_email_text(text)
+    data['raw_text'] = text
+    return jsonify(data)
+
+
+def _html_to_text(html):
+    """Convert HTML to plain text, preserving line breaks from block elements."""
+    import html as html_module
+    text = html
+    # Block-level tags -> newline before content
+    text = re.sub(r'<(?:br|BR)\s*/?\s*>', '\n', text)
+    text = re.sub(r'<(?:hr|HR)\s*/?\s*>', '\n---\n', text)
+    text = re.sub(r'</(?:div|DIV|p|P|tr|TR|li|LI|h[1-6]|H[1-6]|blockquote|BLOCKQUOTE)\s*>', '\n', text)
+    text = re.sub(r'<(?:div|DIV|p|P|tr|TR|li|LI|h[1-6]|H[1-6]|blockquote|BLOCKQUOTE)[^>]*>', '\n', text)
+    text = re.sub(r'</(?:td|TD|th|TH)\s*>', '\t', text)
+    # Remove all remaining tags
+    text = re.sub(r'<style[^>]*>.*?</style>', '', text, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r'<script[^>]*>.*?</script>', '', text, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r'<[^>]+>', '', text)
+    # Decode HTML entities
+    text = html_module.unescape(text)
+    # Clean up excessive whitespace
+    text = re.sub(r'[ \t]+', ' ', text)
+    text = re.sub(r'\n\s*\n\s*\n+', '\n\n', text)
+    # Trim each line
+    text = '\n'.join(line.strip() for line in text.split('\n'))
+    return text.strip()
+
+
+def _parse_msg_file(raw_bytes):
+    """Extract body text from Outlook .msg file using olefile."""
+    if olefile is None:
+        return ''
+    import io as io_module
+    try:
+        ole = olefile.OleFileIO(io_module.BytesIO(raw_bytes))
+    except Exception:
+        return ''
+
+    body = ''
+
+    # Try plain text body first
+    for stream_name in [
+        '__substg1.0_1000001F',  # Body (Unicode)
+        '__substg1.0_1000001E',  # Body (ANSI)
+    ]:
+        if ole.exists(stream_name):
+            data = ole.openstream(stream_name).read()
+            if stream_name.endswith('1F'):
+                body = data.decode('utf-16-le', errors='replace')
+            else:
+                body = data.decode('utf-8', errors='replace')
+            break
+
+    # Fallback: try HTML body
+    if not body.strip():
+        for stream_name in [
+            '__substg1.0_10130102',  # HTML body
+            '__substg1.0_1013001F',
+            '__substg1.0_1013001E',
+        ]:
+            if ole.exists(stream_name):
+                data = ole.openstream(stream_name).read()
+                if stream_name.endswith('1F'):
+                    raw_html = data.decode('utf-16-le', errors='replace')
+                elif stream_name.endswith('1E'):
+                    raw_html = data.decode('utf-8', errors='replace')
+                else:
+                    raw_html = data.decode('utf-8', errors='replace')
+                body = _html_to_text(raw_html)
+                break
+
+    ole.close()
+    return body
+
+
+def _parse_eml_file(raw_bytes):
+    """Extract body text from .eml (RFC822) file."""
+    msg = email.message_from_bytes(raw_bytes)
+    body = ''
+    if msg.is_multipart():
+        for part in msg.walk():
+            ct = part.get_content_type()
+            if ct == 'text/plain':
+                charset = part.get_content_charset() or 'utf-8'
+                body = part.get_payload(decode=True).decode(charset, errors='replace')
+                break
+            elif ct == 'text/html' and not body:
+                charset = part.get_content_charset() or 'utf-8'
+                html_body = part.get_payload(decode=True).decode(charset, errors='replace')
+                body = _html_to_text(html_body)
+    else:
+        charset = msg.get_content_charset() or 'utf-8'
+        payload = msg.get_payload(decode=True)
+        if payload:
+            body = payload.decode(charset, errors='replace')
+            if msg.get_content_type() == 'text/html':
+                body = _html_to_text(body)
+    return body
+
+
+def _ensure_newlines(text):
+    """If text has no newlines, insert them before known labels."""
+    if '\n' in text and len(text.split('\n')) > 5:
+        return text  # Already has newlines
+
+    # Ordered longest first to avoid partial matches
+    labels = [
+        'Neue DE Carport-Anfrage', 'Neue Carport-Anfrage',
+        'Weitere Informationen', 'Ausgewählte Module',
+        'Anzahl Stellplätze', 'Carport-Variante', 'Batteriespeicher',
+        'Preisübersicht', 'Gesamtbetrag', 'Konfiguration', 'Installation',
+        'Kundendaten', 'UID-Nummer', 'Straße/Nr.', 'Adresse',
+        'E-Mail', 'Telefon', 'Hinweis:', 'Firma',
+        'Name', 'Land', 'PLZ', 'Ort',
+    ]
+    for label in labels:
+        # Use word boundary \b to prevent matching inside words
+        # e.g. "Ort" should not match inside "Carport"
+        pattern = r' (?=' + re.escape(label) + r'(?:\s|$))'
+        text = re.sub(pattern, '\n', text)
+
+    return text
+
+
+def _parse_email_text(text):
+    """Extract structured fields from a Carport inquiry email."""
+    # Pre-process: convert tab-separated "Label\tValue" lines (from HTML tables)
+    # into "Label\nValue" so the parser can handle them uniformly
+    new_lines = []
+    for line in text.split('\n'):
+        stripped = line.strip()
+        if '\t' in stripped:
+            parts = [p.strip() for p in stripped.split('\t') if p.strip()]
+            for part in parts:
+                new_lines.append(part)
+        else:
+            new_lines.append(stripped)
+    text = '\n'.join(new_lines)
+
+    # Ensure text has proper line breaks (for single-line .msg text)
+    text = _ensure_newlines(text)
+    lines = [l.strip() for l in text.split('\n')]
+
+    known_labels = [
+        'neue carport-anfrage', 'neue de carport-anfrage', 'kundendaten',
+        'name', 'e-mail', 'telefon',
+        'firma', 'uid-nummer', 'adresse', 'straße/nr.', 'straße/nr', 'plz', 'ort', 'land',
+        'konfiguration', 'anzahl stellplätze', 'carport-variante', 'installation',
+        'ausgewählte module', 'batteriespeicher', 'weitere informationen',
+        'preisübersicht', 'gesamtbetrag', 'hinweis',
+    ]
+
+    def norm(s):
+        return re.sub(r'[\s:\-/\.]+', ' ', s.lower()).strip()
+
+    norm_labels = [norm(l) for l in known_labels]
+
+    def is_label(line):
+        n = norm(line)
+        if n in norm_labels:
+            return True
+        # Also treat as label if line starts with a short label (<=8 chars normalized)
+        # that has extra text. E.g. "Adresse Straße/Nr. Winzerweg" starts with "Adresse"
+        # But NOT "Installation der PV-Anlage" (long label "installation" has real value after it)
+        for nl in norm_labels:
+            if len(nl) <= 8 and n.startswith(nl + ' '):
+                return True
+        return False
+
+    def find_value(label):
+        target = norm(label)
+        for i, line in enumerate(lines):
+            n = norm(line)
+            # Exact match: label on its own line, value on next non-empty line
+            if n == target:
+                if i + 1 < len(lines) and lines[i + 1] and not is_label(lines[i + 1]):
+                    return lines[i + 1]
+                # If next line is a label or empty, this field has no value
+                return ''
+            # Same-line match: "Label Value" on one line
+            elif n.startswith(target + ' '):
+                rest = line[len(label):].strip().lstrip(':').strip()
+                if rest:
+                    return rest
+        return ''
+
+    return {
+        'name': find_value('Name'),
+        'email': find_value('E-Mail'),
+        'phone': find_value('Telefon'),
+        'company': find_value('Firma'),
+        'uid': find_value('UID-Nummer'),
+        'street': find_value('Straße/Nr.') or find_value('Straße/Nr'),
+        'zip': find_value('PLZ'),
+        'city': find_value('Ort'),
+        'country': find_value('Land'),
+        'stellplaetze': find_value('Anzahl Stellplätze'),
+        'carport_variante': find_value('Carport-Variante'),
+        'installation': find_value('Installation'),
+        'module': find_value('Ausgewählte Module'),
+        'batterie': find_value('Batteriespeicher'),
+        'weitere_infos': find_value('Weitere Informationen'),
+        'gesamtbetrag': find_value('Gesamtbetrag'),
+    }
+
+
 def _parse_product_form(form):
     return {
         'category': form.get('category', ''),
         'title': form.get('title', ''),
         'description': form.get('description', ''),
         'default_quantity': form.get('default_quantity', '1x'),
+        'title_1_slot': form.get('title_1_slot', ''),
+        'title_2_slot': form.get('title_2_slot', ''),
+        'title_3_plus_title': form.get('title_3_plus_title', ''),
+        'description_1_slot': form.get('description_1_slot', ''),
+        'description_2_slot': form.get('description_2_slot', ''),
+        'description_3_plus_desc': form.get('description_3_plus_desc', ''),
+        'quantity_1_slot': form.get('quantity_1_slot', ''),
+        'quantity_2_slot': form.get('quantity_2_slot', ''),
+        'quantity_3_plus_qty': form.get('quantity_3_plus_qty', ''),
         'price_1_slot': form.get('price_1_slot', '') or None,
         'price_2_slot': form.get('price_2_slot', '') or None,
         'price_3_plus': form.get('price_3_plus', ''),
@@ -336,12 +584,42 @@ def _parse_product_form(form):
 
 
 def parse_items_from_form(form):
+    # Primary: read items from JSON hidden field (most reliable for dynamic rows)
+    items_json = form.get('items_json', '')
+    if items_json:
+        try:
+            raw_items = json.loads(items_json)
+            items = []
+            for item in raw_items:
+                title = str(item.get('title', ''))
+                desc = str(item.get('description', ''))
+                if title.strip() or desc.strip():
+                    items.append({
+                        'title': title,
+                        'description': desc,
+                        'quantity': str(item.get('quantity', '1x')) or '1x',
+                        'total_price': float(item.get('total_price', 0) or 0),
+                        'is_carport': int(item.get('is_carport', 0) or 0),
+                        'is_optional': int(item.get('is_optional', 0) or 0),
+                        'is_richtpreis': int(item.get('is_richtpreis', 0) or 0),
+                    })
+            if items:
+                return items
+        except (json.JSONDecodeError, TypeError, ValueError):
+            pass
+
+    # Fallback: read from individual form fields
+    indices = set()
+    for key in form.keys():
+        if key.startswith('item_title_'):
+            try:
+                indices.add(int(key.split('_')[-1]))
+            except ValueError:
+                pass
+
     items = []
-    i = 0
-    while True:
-        title = form.get(f'item_title_{i}')
-        if title is None:
-            break
+    for i in sorted(indices):
+        title = form.get(f'item_title_{i}', '')
         if title.strip() or form.get(f'item_description_{i}', '').strip():
             items.append({
                 'title': title,
@@ -349,8 +627,9 @@ def parse_items_from_form(form):
                 'quantity': form.get(f'item_quantity_{i}', '1x') or '1x',
                 'total_price': float(form.get(f'item_price_{i}', 0) or 0),
                 'is_carport': 1 if form.get(f'item_is_carport_{i}') else 0,
+                'is_optional': 1 if form.get(f'item_is_optional_{i}') else 0,
+                'is_richtpreis': 1 if form.get(f'item_is_richtpreis_{i}') else 0,
             })
-        i += 1
     return items
 
 
