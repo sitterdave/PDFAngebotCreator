@@ -44,8 +44,8 @@ if errorlevel 1 (
     exit /b 1
 )
 
-:: Abhängigkeiten prüfen - Flask importierbar?
-python -c "import flask" >nul 2>&1
+:: Abhängigkeiten prüfen - alle Pakete importierbar?
+python -c "import flask; import olefile" >nul 2>&1
 if errorlevel 1 (
     echo [2/3] Installiere Abhängigkeiten...
     pip install -r requirements.txt
