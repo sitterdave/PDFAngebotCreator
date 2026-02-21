@@ -8,6 +8,14 @@
 </h2>
 
 {% if is_new %}
+<!-- Drag & Drop Overlay (wird über die ganze Seite gelegt) -->
+<div id="dropOverlay" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(13,110,253,0.15); border:4px dashed #0d6efd; pointer-events:none;">
+    <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; background:white; padding:2rem 3rem; border-radius:12px; box-shadow:0 4px 24px rgba(0,0,0,0.2);">
+        <i class="bi bi-envelope-arrow-down fs-1 text-primary"></i>
+        <p class="fw-bold text-primary mt-2 mb-0">E-Mail hier ablegen</p>
+    </div>
+</div>
+
 <!-- E-Mail Import -->
 <div class="card mb-4 border-primary" id="emailImportCard">
     <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
@@ -17,16 +25,28 @@
         </button>
     </div>
     <div class="card-body" id="emailImportBody">
-        <p class="text-muted mb-2">E-Mail-Text hier einfügen und auf <strong>Importieren</strong> klicken:</p>
-        <textarea id="emailTextArea" class="form-control mb-2" rows="6"
-                  placeholder="Hier den kompletten E-Mail-Text einfügen (Strg+V)..."></textarea>
-        <div class="d-flex gap-2">
-            <button type="button" class="btn btn-primary" id="emailImportBtn">
-                <i class="bi bi-magic"></i> Importieren
-            </button>
-            <button type="button" class="btn btn-outline-secondary btn-sm" id="emailClearBtn">
-                <i class="bi bi-x-lg"></i> Leeren
-            </button>
+        <div class="row g-3">
+            <div class="col-12">
+                <p class="text-muted mb-2">
+                    <i class="bi bi-mouse"></i> <strong>Outlook:</strong> E-Mail per Drag &amp; Drop auf die Seite ziehen
+                    &nbsp;|&nbsp;
+                    <i class="bi bi-clipboard"></i> <strong>Text:</strong> Unten einfügen und <em>Importieren</em> klicken
+                </p>
+            </div>
+            <div class="col-12">
+                <textarea id="emailTextArea" class="form-control mb-2" rows="5"
+                          placeholder="Hier den kompletten E-Mail-Text einfügen (Strg+V)..."></textarea>
+            </div>
+            <div class="col-12">
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-primary" id="emailImportBtn">
+                        <i class="bi bi-magic"></i> Importieren
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="emailClearBtn">
+                        <i class="bi bi-x-lg"></i> Leeren
+                    </button>
+                </div>
+            </div>
         </div>
         <div id="emailParseResult" class="mt-2" style="display: none;"></div>
     </div>

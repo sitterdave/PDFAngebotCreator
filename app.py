@@ -1,5 +1,7 @@
 import os
 import json
+import email
+import re
 from datetime import datetime, timedelta
 from flask import (
     Flask, render_template, request, redirect, url_for,
@@ -323,6 +325,99 @@ def api_products():
     """Return product templates as JSON for the quote form quick-add."""
     templates = get_all_product_templates()
     return jsonify(templates)
+
+
+@app.route('/api/parse-email', methods=['POST'])
+def api_parse_email():
+    """Parse an uploaded .eml file or plain text and extract customer data."""
+    # Check if a file was uploaded (.eml drag & drop)
+    if 'file' in request.files:
+        f = request.files['file']
+        raw = f.read()
+        # Try to parse as .eml
+        msg = email.message_from_bytes(raw)
+        body = ''
+        if msg.is_multipart():
+            for part in msg.walk():
+                ct = part.get_content_type()
+                if ct == 'text/plain':
+                    charset = part.get_content_charset() or 'utf-8'
+                    body = part.get_payload(decode=True).decode(charset, errors='replace')
+                    break
+                elif ct == 'text/html' and not body:
+                    charset = part.get_content_charset() or 'utf-8'
+                    html_body = part.get_payload(decode=True).decode(charset, errors='replace')
+                    body = re.sub(r'<br\s*/?>', '\n', html_body)
+                    body = re.sub(r'<[^>]+>', '', body)
+        else:
+            charset = msg.get_content_charset() or 'utf-8'
+            payload = msg.get_payload(decode=True)
+            if payload:
+                body = payload.decode(charset, errors='replace')
+                if msg.get_content_type() == 'text/html':
+                    body = re.sub(r'<br\s*/?>', '\n', body)
+                    body = re.sub(r'<[^>]+>', '', body)
+        text = body
+    else:
+        # Plain text in request body
+        text = request.get_data(as_text=True)
+
+    if not text:
+        return jsonify({'error': 'Kein Text gefunden'}), 400
+
+    # Parse fields from text
+    data = _parse_email_text(text)
+    data['raw_text'] = text
+    return jsonify(data)
+
+
+def _parse_email_text(text):
+    """Extract structured fields from a Carport inquiry email."""
+    lines = [l.strip() for l in text.split('\n')]
+
+    known_labels = [
+        'neue carport-anfrage', 'kundendaten', 'name', 'e-mail', 'telefon',
+        'firma', 'uid-nummer', 'adresse', 'straße/nr.', 'straße/nr', 'plz', 'ort', 'land',
+        'konfiguration', 'anzahl stellplätze', 'carport-variante', 'installation',
+        'ausgewählte module', 'batteriespeicher', 'weitere informationen',
+        'preisübersicht', 'gesamtbetrag', 'hinweis'
+    ]
+
+    def norm(s):
+        return re.sub(r'[\s:\-/\.]+', ' ', s.lower()).strip()
+
+    norm_labels = [norm(l) for l in known_labels]
+
+    def is_label(line):
+        return norm(line) in norm_labels
+
+    def find_value(label):
+        target = norm(label)
+        for i, line in enumerate(lines):
+            if norm(line) == target:
+                for j in range(i + 1, min(i + 4, len(lines))):
+                    if lines[j] and not is_label(lines[j]):
+                        return lines[j]
+        return ''
+
+    return {
+        'name': find_value('Name'),
+        'email': find_value('E-Mail'),
+        'phone': find_value('Telefon'),
+        'company': find_value('Firma'),
+        'uid': find_value('UID-Nummer'),
+        'street': find_value('Straße/Nr.') or find_value('Straße/Nr'),
+        'zip': find_value('PLZ'),
+        'city': find_value('Ort'),
+        'country': find_value('Land'),
+        'stellplaetze': find_value('Anzahl Stellplätze'),
+        'carport_variante': find_value('Carport-Variante'),
+        'installation': find_value('Installation'),
+        'module': find_value('Ausgewählte Module'),
+        'batterie': find_value('Batteriespeicher'),
+        'weitere_infos': find_value('Weitere Informationen'),
+        'gesamtbetrag': find_value('Gesamtbetrag'),
+    }
 
 
 def _parse_product_form(form):
