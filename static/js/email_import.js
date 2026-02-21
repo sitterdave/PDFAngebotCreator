@@ -1,8 +1,7 @@
 /**
  * E-Mail Import für Carport-Anfrage E-Mails
- * - Drag & Drop: .eml Datei aus Outlook auf die Seite ziehen -> Server parst die Datei
- * - Textarea + Button: Text einfügen und "Importieren" klicken -> Client parst den Text
- * Füllt das Angebotsformular automatisch aus und speichert die Anfrage in den internen Notizen.
+ * - Drag & Drop: .msg/.eml Datei oder Text auf die Seite ziehen
+ * - Textarea + Button: Text einfügen und "Importieren" klicken
  */
 document.addEventListener('DOMContentLoaded', function() {
     var textArea = document.getElementById('emailTextArea');
@@ -67,31 +66,16 @@ document.addEventListener('DOMContentLoaded', function() {
         dragCounter = 0;
         if (dropOverlay) dropOverlay.style.display = 'none';
 
-        // Prüfen ob Dateien gedroppt wurden (.eml)
+        // Dateien gedroppt -> immer an Server senden (egal welcher Typ)
         if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
             var file = e.dataTransfer.files[0];
-            // .eml oder .msg Datei -> an Server senden
-            if (file.name.endsWith('.eml') || file.name.endsWith('.msg') || file.type === 'message/rfc822') {
-                uploadEmlFile(file);
-                return;
-            }
-            // Vielleicht eine Textdatei?
-            if (file.type && file.type.startsWith('text/')) {
-                var reader = new FileReader();
-                reader.onload = function(ev) {
-                    var text = ev.target.result;
-                    textArea.value = text;
-                    var data = parseEmailText(text);
-                    fillForm(data, text);
-                };
-                reader.readAsText(file);
-                return;
-            }
+            uploadFile(file);
+            return;
         }
 
-        // Fallback: Plain-text aus Drag
+        // Plain-text aus Drag
         var text = e.dataTransfer.getData('text/plain') || e.dataTransfer.getData('text');
-        if (text) {
+        if (text && text.trim()) {
             textArea.value = text;
             var data = parseEmailText(text);
             fillForm(data, text);
@@ -115,9 +99,9 @@ document.addEventListener('DOMContentLoaded', function() {
         showResult('Konnte die Datei nicht lesen. Bitte den Text manuell einfügen.', 'warning');
     });
 
-    // === .eml an Server senden ===
-    function uploadEmlFile(file) {
-        showResult('<i class="bi bi-hourglass-split me-1"></i> E-Mail wird verarbeitet...', 'info');
+    // === Datei an Server senden ===
+    function uploadFile(file) {
+        showResult('<i class="bi bi-hourglass-split me-1"></i> E-Mail wird verarbeitet (' + escapeHtml(file.name) + ')...', 'info');
 
         var formData = new FormData();
         formData.append('file', file);
@@ -133,17 +117,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             var rawText = data.raw_text || '';
+            // Zeige den erkannten Text in der Textarea
+            if (rawText) textArea.value = rawText;
             fillForm(data, rawText);
         })
-        .catch(function() {
-            showResult('Fehler beim Verarbeiten der E-Mail-Datei.', 'danger');
+        .catch(function(err) {
+            showResult('Fehler beim Verarbeiten: ' + escapeHtml(String(err)), 'danger');
         });
     }
 
     // === Formular ausfüllen ===
     function fillForm(data, rawText) {
         if (!data.name) {
-            showResult('Konnte keine Kundendaten erkennen. Ist der E-Mail-Text vollständig?', 'warning');
+            // Zeige was erkannt wurde, damit der User debuggen kann
+            var debugInfo = rawText ? '<br><small class="text-muted">Erkannter Text (erste 500 Zeichen):<br><code>'
+                + escapeHtml(rawText.substring(0, 500)) + '</code></small>' : '';
+            showResult('Konnte keine Kundendaten erkennen. Ist der E-Mail-Text vollständig?' + debugInfo, 'warning');
             return;
         }
 
@@ -175,14 +164,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Interne Notizen: Zusammenfassung + komplette Anfrage
         var notes = [];
-        if (data.stellplaetze || data.carport_variante || data.carportVariante) {
+        var variante = data.carport_variante || data.carportVariante || '';
+        if (data.stellplaetze || variante) {
             notes.push('=== ANFRAGE-DETAILS ===');
             if (data.stellplaetze) notes.push('Stellplätze: ' + data.stellplaetze);
-            if (data.carport_variante || data.carportVariante) notes.push('Carport-Variante: ' + (data.carport_variante || data.carportVariante));
+            if (variante) notes.push('Carport-Variante: ' + variante);
             if (data.installation) notes.push('Installation: ' + data.installation);
             if (data.module) notes.push('Module: ' + data.module);
             if (data.batterie) notes.push('Batterie: ' + data.batterie);
-            if (data.weitere_infos || data.weitereInfos) notes.push('Weitere Infos: ' + (data.weitere_infos || data.weitereInfos));
+            var infos = data.weitere_infos || data.weitereInfos || '';
+            if (infos) notes.push('Weitere Infos: ' + infos);
             if (data.gesamtbetrag) notes.push('Gesamtbetrag (Anfrage): ' + data.gesamtbetrag);
         }
         notes.push('');
@@ -197,7 +188,6 @@ document.addEventListener('DOMContentLoaded', function() {
         // Erfolgs-Anzeige
         var parts = ['<strong>' + escapeHtml(data.name) + '</strong>'];
         if (data.city) parts.push(escapeHtml(data.city));
-        var variante = data.carport_variante || data.carportVariante || '';
         if (variante) parts.push(escapeHtml(variante));
 
         showResult('<i class="bi bi-check-circle me-1"></i> Daten importiert: ' + parts.join(' &mdash; '), 'success');
@@ -224,16 +214,18 @@ document.addEventListener('DOMContentLoaded', function() {
         };
     }
 
-    // === Client-seitiger E-Mail-Parser (für Textarea-Text) ===
+    // === Client-seitiger E-Mail-Parser ===
     function parseEmailText(text) {
+        // Zuerst versuchen: Label und Wert auf separaten Zeilen
         var lines = text.split(/\r?\n/).map(function(l) { return l.trim(); });
 
         var knownLabels = [
-            'neue carport-anfrage', 'kundendaten', 'name', 'e-mail', 'telefon',
-            'firma', 'uid-nummer', 'adresse', 'straße/nr.', 'straße/nr', 'plz', 'ort', 'land',
-            'konfiguration', 'anzahl stellplätze', 'carport-variante', 'installation',
-            'ausgewählte module', 'batteriespeicher', 'weitere informationen',
-            'preisübersicht', 'gesamtbetrag', 'hinweis'
+            'neue carport-anfrage', 'neue de carport-anfrage', 'kundendaten',
+            'name', 'e-mail', 'telefon', 'firma', 'uid-nummer',
+            'adresse', 'straße/nr.', 'straße/nr', 'plz', 'ort', 'land',
+            'konfiguration', 'anzahl stellplätze', 'carport-variante',
+            'installation', 'ausgewählte module', 'batteriespeicher',
+            'weitere informationen', 'preisübersicht', 'gesamtbetrag', 'hinweis'
         ];
 
         function normalize(s) {
@@ -246,7 +238,8 @@ document.addEventListener('DOMContentLoaded', function() {
             return normLabels.indexOf(normalize(line)) >= 0;
         }
 
-        function findValue(label) {
+        // Methode 1: Label auf eigener Zeile, Wert auf nächster Zeile
+        function findValueNextLine(label) {
             var target = normalize(label);
             for (var i = 0; i < lines.length; i++) {
                 if (normalize(lines[i]) === target) {
@@ -260,23 +253,49 @@ document.addEventListener('DOMContentLoaded', function() {
             return '';
         }
 
+        // Methode 2: "Label: Wert" oder "Label\tWert" auf gleicher Zeile
+        function findValueSameLine(label) {
+            var lowerLabel = label.toLowerCase();
+            for (var i = 0; i < lines.length; i++) {
+                var line = lines[i];
+                var lowerLine = line.toLowerCase();
+                // "Name: Siegfried Huber" oder "Name\tSiegfried Huber"
+                if (lowerLine.indexOf(lowerLabel) === 0) {
+                    var rest = line.substring(lowerLabel.length).replace(/^[\s:;\-\t]+/, '').trim();
+                    if (rest) return rest;
+                }
+                // "Name Siegfried Huber" (Label gefolgt von Wert mit Leerzeichen)
+                var labelWithSpace = lowerLabel + ' ';
+                if (lowerLine.indexOf(labelWithSpace) === 0) {
+                    var rest2 = line.substring(labelWithSpace.length).trim();
+                    if (rest2) return rest2;
+                }
+            }
+            return '';
+        }
+
+        // Kombiniert: erst nächste Zeile versuchen, dann gleiche Zeile
+        function findValue(label) {
+            return findValueNextLine(label) || findValueSameLine(label);
+        }
+
         return {
             name: findValue('Name'),
-            email: findValue('E-Mail'),
-            phone: findValue('Telefon'),
-            company: findValue('Firma'),
-            uid: findValue('UID-Nummer'),
-            street: findValue('Straße/Nr.') || findValue('Straße/Nr'),
-            zip: findValue('PLZ'),
-            city: findValue('Ort'),
+            email: findValue('E-Mail') || findValue('E-Mail-Adresse') || findValue('Email'),
+            phone: findValue('Telefon') || findValue('Telefonnummer') || findValue('Tel'),
+            company: findValue('Firma') || findValue('Unternehmen'),
+            uid: findValue('UID-Nummer') || findValue('UID'),
+            street: findValue('Straße/Nr.') || findValue('Straße/Nr') || findValue('Straße'),
+            zip: findValue('PLZ') || findValue('Postleitzahl'),
+            city: findValue('Ort') || findValue('Stadt'),
             country: findValue('Land'),
-            stellplaetze: findValue('Anzahl Stellplätze'),
-            carportVariante: findValue('Carport-Variante'),
+            stellplaetze: findValue('Anzahl Stellplätze') || findValue('Stellplätze'),
+            carportVariante: findValue('Carport-Variante') || findValue('Carport Variante') || findValue('Variante'),
             installation: findValue('Installation'),
-            module: findValue('Ausgewählte Module'),
-            batterie: findValue('Batteriespeicher'),
-            weitereInfos: findValue('Weitere Informationen'),
-            gesamtbetrag: findValue('Gesamtbetrag')
+            module: findValue('Ausgewählte Module') || findValue('Module'),
+            batterie: findValue('Batteriespeicher') || findValue('Batterie'),
+            weitereInfos: findValue('Weitere Informationen') || findValue('Weitere Infos') || findValue('Anmerkungen'),
+            gesamtbetrag: findValue('Gesamtbetrag') || findValue('Gesamtpreis')
         };
     }
 

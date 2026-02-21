@@ -438,11 +438,13 @@ def _parse_email_text(text):
     lines = [l.strip() for l in text.split('\n')]
 
     known_labels = [
-        'neue carport-anfrage', 'kundendaten', 'name', 'e-mail', 'telefon',
+        'neue carport-anfrage', 'neue de carport-anfrage', 'kundendaten',
+        'name', 'e-mail', 'telefon',
         'firma', 'uid-nummer', 'adresse', 'straße/nr.', 'straße/nr', 'plz', 'ort', 'land',
         'konfiguration', 'anzahl stellplätze', 'carport-variante', 'installation',
         'ausgewählte module', 'batteriespeicher', 'weitere informationen',
-        'preisübersicht', 'gesamtbetrag', 'hinweis'
+        'preisübersicht', 'gesamtbetrag', 'hinweis',
+        'hinweis: lieferkosten werden individuell berechnet und sind nicht im gesamtbetrag enthalten.',
     ]
 
     def norm(s):
