@@ -368,40 +368,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
 
-                // 2. Installation - nur hinzufügen wenn in Email explizit erwähnt
-                if (installation) {
-                    // Carport Installation NUR wenn "Carport" im Installation-Feld steht
-                    if (/Carport/i.test(installation)) {
-                        var carportInstall = findProduct(templates, 'Installation', 'Carport Installation');
-                        if (carportInstall) {
-                            window.addItemRow({
-                                title: getTitle(carportInstall, slotCount),
-                                description: getDesc(carportInstall, slotCount),
-                                quantity: getQty(carportInstall, slotCount),
-                                price: getPrice(carportInstall, slotCount),
-                                is_carport: true
-                            });
-                            added.push('Carport Installation');
-                        }
-                    }
+                // === MATERIALIEN / KOMPONENTEN ===
 
-                    // PV-Installation NUR wenn "PV" oder "Anlage" im Installation-Feld steht
-                    if (/PV|Anlage/i.test(installation)) {
-                        var pvInstall = findProduct(templates, 'Installation', 'Installation der PV');
-                        if (pvInstall) {
-                            window.addItemRow({
-                                title: getTitle(pvInstall, slotCount),
-                                description: getDesc(pvInstall, slotCount),
-                                quantity: getQty(pvInstall, slotCount),
-                                price: getPrice(pvInstall, slotCount),
-                                is_carport: false
-                            });
-                            added.push('PV Installation');
-                        }
-                    }
-                }
-
-                // 3. PV-Module - hinzufügen wenn Module-Feld nicht leer/nein ist
+                // 2. PV-Module - hinzufügen wenn Module-Feld nicht leer/nein ist
                 var hasModules = module && !/^(nein|keine|-)$/i.test(module.trim());
                 if (hasModules) {
                     var pvMod = findProduct(templates, 'Komponenten', 'PV Modul')
@@ -420,7 +389,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
 
-                // 4. Wechselrichter - hinzufügen wenn PV-Module vorhanden
+                // 3. Wechselrichter - hinzufügen wenn PV-Module vorhanden
                 if (hasModules) {
                     var wr = findProduct(templates, 'Komponenten', 'Wechselrichter')
                         || findProduct(templates, 'Komponenten', 'GoodWe');
@@ -436,7 +405,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
 
-                // 5. Batteriespeicher (wenn in Email ausgewählt)
+                // 4. Batteriespeicher (wenn in Email ausgewählt)
                 var hasBatterie = batterie && !/^(nein|keine|nicht angegeben|-)$/i.test(batterie.trim());
                 if (hasBatterie) {
                     var bat = findProduct(templates, 'Komponenten', 'Batteriespeicher')
@@ -454,22 +423,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
 
-                // 6. Elektrische Anschlüsse (wenn PV-Installation gewählt)
-                if (installation && /PV|Anlage/i.test(installation)) {
-                    var elektro = findProduct(templates, 'Installation', 'Elektrische Anschlüsse');
-                    if (elektro) {
-                        window.addItemRow({
-                            title: getTitle(elektro, slotCount),
-                            description: getDesc(elektro, slotCount),
-                            quantity: getQty(elektro, slotCount),
-                            price: getPrice(elektro, slotCount),
-                            is_carport: false
-                        });
-                        added.push('Elektrische Anschlüsse');
-                    }
-                }
-
-                // 7. Elektromaterialien (wenn PV-Installation gewählt)
+                // 5. Elektromaterialien (wenn PV-Installation gewählt)
                 if (installation && /PV|Anlage/i.test(installation)) {
                     var emat = findProduct(templates, 'Komponenten', 'Elektromaterial');
                     if (emat) {
@@ -484,7 +438,71 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
 
-                // 8. Montagesystem / Dichtungssystem (OPTIONAL)
+                // === INSTALLATIONEN ===
+
+                // 6. Carport Installation NUR wenn "Carport" im Installation-Feld steht
+                if (installation && /Carport/i.test(installation)) {
+                    var carportInstall = findProduct(templates, 'Installation', 'Carport Installation');
+                    if (carportInstall) {
+                        window.addItemRow({
+                            title: getTitle(carportInstall, slotCount),
+                            description: getDesc(carportInstall, slotCount),
+                            quantity: getQty(carportInstall, slotCount),
+                            price: getPrice(carportInstall, slotCount),
+                            is_carport: true
+                        });
+                        added.push('Carport Installation');
+                    }
+                }
+
+                // 7. PV-Installation NUR wenn "PV" oder "Anlage" im Installation-Feld steht
+                if (installation && /PV|Anlage/i.test(installation)) {
+                    var pvInstall = findProduct(templates, 'Installation', 'Installation der PV');
+                    if (pvInstall) {
+                        window.addItemRow({
+                            title: getTitle(pvInstall, slotCount),
+                            description: getDesc(pvInstall, slotCount),
+                            quantity: getQty(pvInstall, slotCount),
+                            price: getPrice(pvInstall, slotCount),
+                            is_carport: false
+                        });
+                        added.push('PV Installation');
+                    }
+                }
+
+                // 8. Elektrische Anschlüsse (wenn PV-Installation gewählt)
+                if (installation && /PV|Anlage/i.test(installation)) {
+                    var elektro = findProduct(templates, 'Installation', 'Elektrische Anschlüsse');
+                    if (elektro) {
+                        window.addItemRow({
+                            title: getTitle(elektro, slotCount),
+                            description: getDesc(elektro, slotCount),
+                            quantity: getQty(elektro, slotCount),
+                            price: getPrice(elektro, slotCount),
+                            is_carport: false
+                        });
+                        added.push('Elektrische Anschlüsse');
+                    }
+                }
+
+                // === LIEFERUNG ===
+
+                // 9. Lieferung immer hinzufügen
+                var lieferung = findProduct(templates, 'Lieferung', 'Lieferung');
+                if (lieferung) {
+                    window.addItemRow({
+                        title: getTitle(lieferung, slotCount),
+                        description: getDesc(lieferung, slotCount),
+                        quantity: getQty(lieferung, slotCount),
+                        price: getPrice(lieferung, slotCount),
+                        is_carport: false
+                    });
+                    added.push('Lieferung');
+                }
+
+                // === OPTIONALE POSITIONEN (ganz am Ende) ===
+
+                // 10. Montagesystem / Dichtungssystem (OPTIONAL)
                 if (isSModell) {
                     // S-Modell: nur Dichtungssystem für S-Modelle als optional
                     var dichtung = findProduct(templates, null, 'Dichtungssystem');
@@ -528,19 +546,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         });
                         added.push('PV-Montagesystem Standard (optional)');
                     }
-                }
-
-                // 9. Lieferung immer hinzufügen
-                var lieferung = findProduct(templates, 'Lieferung', 'Lieferung');
-                if (lieferung) {
-                    window.addItemRow({
-                        title: getTitle(lieferung, slotCount),
-                        description: getDesc(lieferung, slotCount),
-                        quantity: getQty(lieferung, slotCount),
-                        price: getPrice(lieferung, slotCount),
-                        is_carport: false
-                    });
-                    added.push('Lieferung');
                 }
 
                 if (added.length) {

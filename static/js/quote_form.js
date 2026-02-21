@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const row = document.createElement('tr');
         row.className = 'item-row';
         row.dataset.index = idx;
+        row.draggable = true;
 
         const title = data ? (data.title || '') : '';
         const desc = data ? (data.description || '') : '';
@@ -24,6 +25,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const isOptional = data ? data.is_optional : false;
 
         row.innerHTML = `
+            <td class="align-middle text-center drag-handle" style="cursor: grab; color: #999;"><i class="bi bi-grip-vertical"></i></td>
             <td class="align-middle text-center pos-number">${document.querySelectorAll('.item-row').length + 1}</td>
             <td>
                 <input type="text" name="item_title_${idx}"
@@ -189,7 +191,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!hint) {
                 hint = document.createElement('tr');
                 hint.id = 'emptyItemsHint';
-                hint.innerHTML = '<td colspan="8" class="text-center text-muted py-3">'
+                hint.innerHTML = '<td colspan="9" class="text-center text-muted py-3">'
                     + '<i class="bi bi-info-circle me-1"></i>'
                     + 'Positionen über "Aus Vorlage" oder "Leere Position" hinzufügen'
                     + '</td>';
@@ -476,4 +478,77 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!str) return '';
         return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
+
+    // === Drag & Drop zum Verschieben von Positionen ===
+    let draggedRow = null;
+
+    itemsBody.addEventListener('dragstart', function(e) {
+        const row = e.target.closest('.item-row');
+        if (!row) return;
+        draggedRow = row;
+        row.style.opacity = '0.4';
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', '');
+    });
+
+    itemsBody.addEventListener('dragend', function(e) {
+        const row = e.target.closest('.item-row');
+        if (row) row.style.opacity = '';
+        draggedRow = null;
+        // Alle Drop-Markierungen entfernen
+        document.querySelectorAll('.item-row').forEach(function(r) {
+            r.style.borderTop = '';
+            r.style.borderBottom = '';
+        });
+    });
+
+    itemsBody.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        if (!draggedRow) return;
+
+        const targetRow = e.target.closest('.item-row');
+        if (!targetRow || targetRow === draggedRow) return;
+
+        // Alle Markierungen entfernen
+        document.querySelectorAll('.item-row').forEach(function(r) {
+            r.style.borderTop = '';
+            r.style.borderBottom = '';
+        });
+
+        // Anzeigen wo eingefügt wird
+        const rect = targetRow.getBoundingClientRect();
+        const midY = rect.top + rect.height / 2;
+        if (e.clientY < midY) {
+            targetRow.style.borderTop = '3px solid #0d6efd';
+        } else {
+            targetRow.style.borderBottom = '3px solid #0d6efd';
+        }
+    });
+
+    itemsBody.addEventListener('drop', function(e) {
+        e.preventDefault();
+        if (!draggedRow) return;
+
+        const targetRow = e.target.closest('.item-row');
+        if (!targetRow || targetRow === draggedRow) return;
+
+        const rect = targetRow.getBoundingClientRect();
+        const midY = rect.top + rect.height / 2;
+
+        if (e.clientY < midY) {
+            itemsBody.insertBefore(draggedRow, targetRow);
+        } else {
+            itemsBody.insertBefore(draggedRow, targetRow.nextSibling);
+        }
+
+        // Markierungen entfernen
+        document.querySelectorAll('.item-row').forEach(function(r) {
+            r.style.borderTop = '';
+            r.style.borderBottom = '';
+        });
+
+        renumberPositions();
+        recalculate();
+    });
 });
