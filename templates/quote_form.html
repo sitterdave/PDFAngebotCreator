@@ -7,6 +7,20 @@
     {{ 'Neues Angebot erstellen' if is_new else 'Angebot bearbeiten' }}
 </h2>
 
+{% if is_new %}
+<!-- E-Mail Import Drop-Zone -->
+<div class="card mb-4 border-primary" id="emailImportCard">
+    <div class="card-body">
+        <div id="emailDropZone" class="text-center py-4" style="border: 2px dashed #0d6efd; border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+            <i class="bi bi-envelope-arrow-down fs-1 text-primary"></i>
+            <p class="mb-1 mt-2 fw-bold text-primary">Carport-Anfrage E-Mail hier reinziehen oder einfügen</p>
+            <p class="text-muted small mb-0">Drag &amp; Drop oder <kbd>Strg+V</kbd> zum Einfügen des E-Mail-Textes</p>
+        </div>
+        <div id="emailParseResult" class="mt-2" style="display: none;"></div>
+    </div>
+</div>
+{% endif %}
+
 <form method="post" action="{{ url_for('save_quote') }}" id="quoteForm">
     {% if not is_new %}
         <input type="hidden" name="quote_id" value="{{ quote.id }}">
@@ -296,4 +310,7 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/quote_form.js') }}"></script>
+{% if is_new %}
+<script src="{{ url_for('static', filename='js/email_import.js') }}"></script>
+{% endif %}
 {% endblock %}
