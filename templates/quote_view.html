@@ -29,6 +29,7 @@
             </button>
             <ul class="dropdown-menu">
                 <li><a class="dropdown-item" href="#" id="mailto-schneelast-btn"><i class="bi bi-snow"></i> Schneelast zu hoch</a></li>
+                <li><a class="dropdown-item" href="#" id="mailto-s-modell-btn"><i class="bi bi-building"></i> S-Modell</a></li>
             </ul>
         </div>
         {% endif %}
@@ -349,6 +350,52 @@ document.getElementById('mailto-schneelast-btn').addEventListener('click', funct
         + 'Stromsparen24.at\n'
         + 'Labsupport GmbH & Co KG\n'
         + 'UID ATU69952367 | FN 440720v\n'
+        + 'office@stromsparen24.at\n'
+        + '0660 3118004';
+
+    window.location.href = 'mailto:' + encodeURIComponent(email)
+        + '?subject=' + encodeURIComponent(betreff)
+        + '&body=' + encodeURIComponent(text);
+});
+
+document.getElementById('mailto-s-modell-btn').addEventListener('click', function(e) {
+    e.preventDefault();
+
+    var email = {{ quote.customer_email|tojson }};
+    var customerName = {{ quote.customer_name|tojson }};
+    var lastName = customerName.trim().split(/\s+/).pop();
+    var salutation = {{ (quote.customer_salutation or '')|tojson }};
+    var quoteNumber = {{ quote.quote_number|tojson }};
+
+    // Anrede (nur Nachname)
+    var anrede;
+    if (salutation === 'Herr') {
+        anrede = 'Sehr geehrter Herr ' + lastName;
+    } else if (salutation === 'Frau') {
+        anrede = 'Sehr geehrte Frau ' + lastName;
+    } else {
+        anrede = 'Sehr geehrte/r ' + lastName;
+    }
+
+    var betreff = 'Ihr Angebot Nr. ' + quoteNumber + ' | Stromsparen24';
+
+    var text = anrede + ',\n\n'
+        + 'im Anhang finden Sie Ihr persönliches Angebot für das gewünschte PV-Carport.\n\n'
+        + 'Das angebotene System ist als modular aufgebaute Stahlkonstruktion konzipiert und eignet sich flexibel für unterschiedliche Stellplatzvarianten – vom Einzelstellplatz bis hin zu Mehrfachlösungen für mehrere Fahrzeuge. Die Konstruktion ist auf eine wirtschaftliche und effiziente Montage sowie auf eine langfristig stabile Nutzung ausgelegt.\n\n'
+        + 'Besonders hervorzuheben sind:\n'
+        + '• Modulares Erweiterungssystem – zukünftige Anpassungen oder Erweiterungen sind problemlos möglich\n'
+        + '• Korrosionsgeschützte Stahlkonstruktion mit hochwertiger Beschichtung für hohe Witterungsbeständigkeit\n'
+        + '• Durchdachtes Befestigungs- und Verbindungssystem für eine sichere Montage\n'
+        + '• Kompatibilität mit gängigen PV-Modulformaten\n'
+        + '• Doppelte Funktionalität: zuverlässiger Fahrzeugschutz und nachhaltige Energieerzeugung\n\n'
+        + 'Die Konstruktion wurde praxisnah entwickelt und ermöglicht eine strukturierte, nachvollziehbare Installation.\n\n'
+        + 'Für Rückfragen oder Anpassungswünsche stehe ich Ihnen jederzeit gerne zur Verfügung.\n\n'
+        + 'Mit freundlichen Grüßen\n'
+        + 'David Sitter\n\n'
+        + 'Stromsparen24.at\n'
+        + 'Labsupport GmbH & Co KG\n'
+        + 'UID: ATU69952367\n'
+        + 'FN: 440720v\n'
         + 'office@stromsparen24.at\n'
         + '0660 3118004';
 
