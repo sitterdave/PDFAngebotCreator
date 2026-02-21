@@ -28,6 +28,11 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'change-me-in-production-xyz789')
 app.config['APP_PASSWORD'] = os.environ.get('APP_PASSWORD', 'stromsparen2024')
 
+# Brute-Force-Schutz: max. Versuche pro IP
+MAX_LOGIN_ATTEMPTS = 5
+LOGIN_LOCKOUT_SECONDS = 15 * 60  # 15 Minuten
+login_attempts = {}  # {ip: {'count': int, 'locked_until': datetime}}
+
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'static', 'uploads')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'}
 
@@ -51,13 +56,36 @@ def before_request():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
+        ip = request.remote_addr
+        now = datetime.now()
+
+        # Prüfe ob IP gesperrt ist
+        if ip in login_attempts:
+            attempt = login_attempts[ip]
+            if attempt.get('locked_until') and now < attempt['locked_until']:
+                remaining = int((attempt['locked_until'] - now).total_seconds() / 60) + 1
+                flash(f'Zu viele Fehlversuche. Bitte warte {remaining} Minuten.', 'error')
+                return render_template('login.html')
+
         password = request.form.get('password', '')
         if password == app.config['APP_PASSWORD']:
             session['authenticated'] = True
+            # Fehlversuche zurücksetzen bei Erfolg
+            login_attempts.pop(ip, None)
             flash('Erfolgreich angemeldet.', 'success')
             return redirect(url_for('index'))
         else:
-            flash('Falsches Passwort.', 'error')
+            # Fehlversuch zählen
+            if ip not in login_attempts:
+                login_attempts[ip] = {'count': 0, 'locked_until': None}
+            login_attempts[ip]['count'] += 1
+
+            if login_attempts[ip]['count'] >= MAX_LOGIN_ATTEMPTS:
+                login_attempts[ip]['locked_until'] = now + timedelta(seconds=LOGIN_LOCKOUT_SECONDS)
+                flash(f'Zu viele Fehlversuche. Login für 15 Minuten gesperrt.', 'error')
+            else:
+                remaining = MAX_LOGIN_ATTEMPTS - login_attempts[ip]['count']
+                flash(f'Falsches Passwort. Noch {remaining} Versuche.', 'error')
     return render_template('login.html')
 
 
