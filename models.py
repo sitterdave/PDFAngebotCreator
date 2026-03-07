@@ -910,23 +910,27 @@ def delete_product_template(template_id):
 # --- Invoices ---
 
 def generate_invoice_number():
-    """Generate sequential invoice number: RE-YYYY-NNNN"""
+    """Generate sequential invoice number: YYYY-NN-S (e.g. 2026-19-S)"""
     conn = get_db()
     year = datetime.now().strftime('%Y')
-    row = conn.execute(
-        "SELECT invoice_number FROM invoices WHERE invoice_number LIKE ? ORDER BY id DESC LIMIT 1",
-        (f'RE-{year}-%',)
-    ).fetchone()
-    if row:
-        try:
-            last_num = int(row['invoice_number'].split('-')[-1])
-            next_num = last_num + 1
-        except (ValueError, IndexError):
-            next_num = 1
-    else:
-        next_num = 1
+    # Find the highest number used this year
+    rows = conn.execute(
+        "SELECT invoice_number FROM invoices ORDER BY id DESC"
+    ).fetchall()
+    max_num = 0
+    for row in rows:
+        num_str = row['invoice_number'] or ''
+        # Try to parse YYYY-NN-S format
+        if num_str.startswith(year + '-') and num_str.endswith('-S'):
+            try:
+                middle = num_str[len(year)+1:-2]  # extract NN part
+                num = int(middle)
+                if num > max_num:
+                    max_num = num
+            except (ValueError, IndexError):
+                pass
     conn.close()
-    return f'RE-{year}-{next_num:04d}'
+    return f'{year}-{max_num + 1}-S'
 
 
 def create_invoice(data, items):
