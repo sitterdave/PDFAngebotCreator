@@ -305,7 +305,7 @@ def new_invoice():
         'project_description': '',
         'creator_name': default_creator,
         'notes': '',
-        'custom_terms': '',
+        'custom_terms': settings.get('invoice_terms_text', ''),
     }
     items = []
     return render_template('invoice_form.html', invoice=invoice, items=items, is_new=True)
@@ -453,6 +453,7 @@ def settings():
             'terms_text': request.form.get('terms_text', ''),
             'brand_name': request.form.get('brand_name', ''),
             'brand_slogan': request.form.get('brand_slogan', ''),
+            'invoice_terms_text': request.form.get('invoice_terms_text', ''),
         }
 
         # Handle logo upload

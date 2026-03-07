@@ -39,7 +39,8 @@ def init_db():
             default_creator_name TEXT DEFAULT '',
             terms_text TEXT DEFAULT '',
             brand_name TEXT DEFAULT '',
-            brand_slogan TEXT DEFAULT ''
+            brand_slogan TEXT DEFAULT '',
+            invoice_terms_text TEXT DEFAULT ''
         );
 
         CREATE TABLE IF NOT EXISTS quotes (
@@ -202,6 +203,7 @@ def init_db():
     _migrate_existing_data(conn)
     _migrate_product_template_data(conn)
     _migrate_product_prices(conn)
+    _migrate_company_settings_columns(conn)
 
     # Seed product templates if empty
     count = conn.execute("SELECT COUNT(*) as c FROM product_templates").fetchone()['c']
@@ -453,6 +455,14 @@ def _migrate_product_prices(conn):
     conn.commit()
 
 
+def _migrate_company_settings_columns(conn):
+    """Add new columns to company_settings if they don't exist yet."""
+    existing = [col[1] for col in conn.execute("PRAGMA table_info(company_settings)").fetchall()]
+    if 'invoice_terms_text' not in existing:
+        conn.execute("ALTER TABLE company_settings ADD COLUMN invoice_terms_text TEXT DEFAULT ''")
+        conn.commit()
+
+
 def _seed_product_templates(conn):
     """Insert default product templates based on the carport/solar pricing.
 
@@ -620,7 +630,7 @@ def update_company_settings(**kwargs):
         'company_tax_number', 'company_ust_id', 'firmenbuchnummer', 'gerichtsstandort',
         'bank_name', 'iban', 'bic', 'logo_path', 'default_valid_days',
         'default_country', 'default_creator_name', 'terms_text',
-        'brand_name', 'brand_slogan'
+        'brand_name', 'brand_slogan', 'invoice_terms_text'
     ]
     sets = []
     values = []
@@ -1080,7 +1090,7 @@ def create_invoice_from_quote(quote_id):
         'project_description': quote.get('project_description', ''),
         'creator_name': quote.get('creator_name', ''),
         'notes': '',
-        'custom_terms': '',
+        'custom_terms': settings.get('invoice_terms_text', ''),
         'source_quote_id': quote_id,
     }
 
