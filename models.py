@@ -462,6 +462,32 @@ def _migrate_company_settings_columns(conn):
         conn.execute("ALTER TABLE company_settings ADD COLUMN invoice_terms_text TEXT DEFAULT ''")
         conn.commit()
 
+    # Seed default invoice terms if empty
+    row = conn.execute("SELECT invoice_terms_text FROM company_settings WHERE id = 1").fetchone()
+    if row and not (row['invoice_terms_text'] or '').strip():
+        default_invoice_terms = (
+            "Zahlungs- und Rechnungsbedingungen\n\n"
+            "1) Zahlungsbedingungen\n"
+            "Die Zahlung erfolgt in zwei Raten:\n"
+            "    \u2022 50 % Anzahlung nach Erhalt der Auftragsbestätigung. "
+            "Die Bearbeitung des Auftrags sowie Materialbestellungen erfolgen erst nach Eingang der Anzahlung.\n"
+            "    \u2022 50 % Restzahlung nach Fertigstellung und Lieferung aller vereinbarten Positionen. "
+            "Die Restzahlung ist innerhalb von 14 Tagen ab Rechnungsdatum ohne Abzug fällig.\n\n"
+            "2) Rechnungsstellung\n"
+            "Stromsparen24.at ist ein Service der Labsupport GmbH & Co KG. "
+            "Die Rechnungsstellung erfolgt ausschließlich durch die Labsupport GmbH & Co KG.\n\n"
+            "3) Installation\n"
+            "Die Installations- und Anschlussarbeiten erfolgen durch unseren qualifizierten Partnerbetrieb.\n\n"
+            "4) Datenschutz\n"
+            "Ihre personenbezogenen Daten werden vertraulich und gemäß den geltenden "
+            "datenschutzrechtlichen Bestimmungen verarbeitet. Die aktuelle Datenschutzerklärung "
+            "ist unter www.stromsparen24.at abrufbar oder wird auf Anfrage zur Verfügung gestellt.\n\n"
+            "5) Vorbehalte\n"
+            "Irrtümer, Druckfehler sowie Preis-, Material- und Lieferzeitänderungen bleiben vorbehalten."
+        )
+        conn.execute("UPDATE company_settings SET invoice_terms_text = ? WHERE id = 1", (default_invoice_terms,))
+        conn.commit()
+
 
 def _seed_product_templates(conn):
     """Insert default product templates based on the carport/solar pricing.
