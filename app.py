@@ -273,7 +273,8 @@ def invoice_list():
         totals = calculate_quote_totals(items, inv['country'])
         inv['brutto'] = totals['brutto']
         inv['netto'] = totals['netto']
-    return render_template('invoice_list.html', invoices=invoices)
+    quotes = get_all_quotes()
+    return render_template('invoice_list.html', invoices=invoices, quotes=quotes)
 
 
 @app.route('/invoice/new')
