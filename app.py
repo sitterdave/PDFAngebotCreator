@@ -19,9 +19,11 @@ from models import (
     generate_quote_number, create_quote, get_quote, get_all_quotes,
     update_quote, delete_quote, duplicate_quote, calculate_quote_totals,
     get_all_product_templates, get_product_template,
-    create_product_template, update_product_template, delete_product_template
+    create_product_template, update_product_template, delete_product_template,
+    generate_invoice_number, create_invoice, get_invoice, get_all_invoices,
+    update_invoice, delete_invoice, create_invoice_from_quote
 )
-from pdf_generator import generate_quote_pdf
+from pdf_generator import generate_quote_pdf, generate_invoice_pdf
 import io
 
 app = Flask(__name__)
@@ -259,6 +261,168 @@ def preview_pdf(quote_id):
         mimetype='application/pdf',
         as_attachment=False,
     )
+
+
+# --- Invoices ---
+
+@app.route('/invoices')
+def invoice_list():
+    invoices = get_all_invoices()
+    for inv in invoices:
+        _, items = get_invoice(inv['id'])
+        totals = calculate_quote_totals(items, inv['country'])
+        inv['brutto'] = totals['brutto']
+        inv['netto'] = totals['netto']
+    return render_template('invoice_list.html', invoices=invoices)
+
+
+@app.route('/invoice/new')
+def new_invoice():
+    settings = get_company_settings()
+    invoice_number = generate_invoice_number()
+    today = datetime.now().strftime('%Y-%m-%d')
+    due_date = (datetime.now() + timedelta(days=14)).strftime('%Y-%m-%d')
+    default_country = settings.get('default_country', 'AT') or 'AT'
+    default_creator = settings.get('default_creator_name', '') or ''
+
+    invoice = {
+        'invoice_number': invoice_number,
+        'date': today,
+        'due_date': due_date,
+        'country': default_country,
+        'status': 'Offen',
+        'customer_salutation': '',
+        'customer_name': '',
+        'customer_company': '',
+        'customer_street': '',
+        'customer_zip': '',
+        'customer_city': '',
+        'customer_country_label': 'Österreich' if default_country == 'AT' else 'Deutschland',
+        'customer_phone': '',
+        'customer_email': '',
+        'project_name': '',
+        'project_description': '',
+        'creator_name': default_creator,
+        'notes': '',
+        'custom_terms': '',
+    }
+    items = []
+    return render_template('invoice_form.html', invoice=invoice, items=items, is_new=True)
+
+
+@app.route('/invoice/save', methods=['POST'])
+def save_invoice():
+    data = {
+        'invoice_number': request.form.get('invoice_number', ''),
+        'date': request.form.get('date', ''),
+        'due_date': request.form.get('due_date', ''),
+        'country': request.form.get('country', 'AT'),
+        'status': request.form.get('status', 'Offen'),
+        'customer_salutation': request.form.get('customer_salutation', ''),
+        'customer_name': request.form.get('customer_name', ''),
+        'customer_company': request.form.get('customer_company', ''),
+        'customer_street': request.form.get('customer_street', ''),
+        'customer_zip': request.form.get('customer_zip', ''),
+        'customer_city': request.form.get('customer_city', ''),
+        'customer_country_label': request.form.get('customer_country_label', ''),
+        'customer_phone': request.form.get('customer_phone', ''),
+        'customer_email': request.form.get('customer_email', ''),
+        'customer_uid': request.form.get('customer_uid', ''),
+        'project_name': request.form.get('project_name', ''),
+        'project_description': request.form.get('project_description', ''),
+        'creator_name': request.form.get('creator_name', ''),
+        'notes': request.form.get('notes', ''),
+        'custom_terms': request.form.get('custom_terms', ''),
+    }
+
+    items = parse_items_from_form(request.form)
+    invoice_id = request.form.get('invoice_id')
+
+    if invoice_id:
+        update_invoice(int(invoice_id), data, items)
+        flash('Rechnung erfolgreich aktualisiert.', 'success')
+        return redirect(url_for('view_invoice', invoice_id=int(invoice_id)))
+    else:
+        new_id = create_invoice(data, items)
+        flash('Rechnung erfolgreich erstellt.', 'success')
+        return redirect(url_for('view_invoice', invoice_id=new_id))
+
+
+@app.route('/invoice/<int:invoice_id>')
+def view_invoice(invoice_id):
+    invoice, items = get_invoice(invoice_id)
+    if not invoice:
+        flash('Rechnung nicht gefunden.', 'error')
+        return redirect(url_for('invoice_list'))
+    totals = calculate_quote_totals(items, invoice['country'])
+    settings = get_company_settings()
+    return render_template('invoice_view.html', invoice=invoice, items=items, totals=totals, settings=settings)
+
+
+@app.route('/invoice/<int:invoice_id>/edit')
+def edit_invoice(invoice_id):
+    invoice, items = get_invoice(invoice_id)
+    if not invoice:
+        flash('Rechnung nicht gefunden.', 'error')
+        return redirect(url_for('invoice_list'))
+    return render_template('invoice_form.html', invoice=invoice, items=items, is_new=False)
+
+
+@app.route('/invoice/<int:invoice_id>/delete', methods=['POST'])
+def delete_invoice_route(invoice_id):
+    delete_invoice(invoice_id)
+    flash('Rechnung gelöscht.', 'success')
+    return redirect(url_for('invoice_list'))
+
+
+@app.route('/invoice/<int:invoice_id>/pdf')
+def download_invoice_pdf(invoice_id):
+    invoice, items = get_invoice(invoice_id)
+    if not invoice:
+        flash('Rechnung nicht gefunden.', 'error')
+        return redirect(url_for('invoice_list'))
+
+    pdf_bytes = generate_invoice_pdf(invoice, items)
+    filename = f"Rechnung_{invoice['invoice_number'].replace('/', '-').replace(':', '-').replace(' ', '_')}.pdf"
+
+    pdf_dir = os.path.join(app.root_path, 'pdfs')
+    os.makedirs(pdf_dir, exist_ok=True)
+    with open(os.path.join(pdf_dir, filename), 'wb') as f:
+        f.write(pdf_bytes)
+
+    buffer = io.BytesIO(pdf_bytes)
+    return send_file(
+        buffer,
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name=filename
+    )
+
+
+@app.route('/invoice/<int:invoice_id>/pdf/preview')
+def preview_invoice_pdf(invoice_id):
+    invoice, items = get_invoice(invoice_id)
+    if not invoice:
+        flash('Rechnung nicht gefunden.', 'error')
+        return redirect(url_for('invoice_list'))
+
+    pdf_bytes = generate_invoice_pdf(invoice, items)
+    buffer = io.BytesIO(pdf_bytes)
+    return send_file(
+        buffer,
+        mimetype='application/pdf',
+        as_attachment=False,
+    )
+
+
+@app.route('/invoice/from-quote/<int:quote_id>', methods=['POST'])
+def create_invoice_from_quote_route(quote_id):
+    new_id = create_invoice_from_quote(quote_id)
+    if new_id:
+        flash('Rechnung aus Angebot erstellt.', 'success')
+        return redirect(url_for('edit_invoice', invoice_id=new_id))
+    flash('Fehler beim Erstellen der Rechnung.', 'error')
+    return redirect(url_for('index'))
 
 
 # --- Settings ---

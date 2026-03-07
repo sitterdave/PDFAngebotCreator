@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Neue Rechnung' if is_new else 'Rechnung bearbeiten' }} - Angebot Creator{% endblock %}
+
+{% block content %}
+<h2>
+    <i class="bi bi-{{ 'plus-circle' if is_new else 'pencil' }}"></i>
+    {{ 'Neue Rechnung erstellen' if is_new else 'Rechnung bearbeiten' }}
+</h2>
+
+<form method="post" action="{{ url_for('save_invoice') }}" id="quoteForm">
+    {% if not is_new %}
+        <input type="hidden" name="invoice_id" value="{{ invoice.id }}">
+    {% endif %}
+
+    <!-- Rechnungsdaten -->
+    <div class="card mb-4">
+        <div class="card-header bg-teal text-white">
+            <i class="bi bi-receipt"></i> Rechnungsdaten
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Rechnungsnummer</label>
+                    <input type="text" name="invoice_number" class="form-control"
+                           value="{{ invoice.invoice_number }}" {{ 'readonly' if not is_new }}>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Datum</label>
+                    <input type="date" name="date" class="form-control" value="{{ invoice.date }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Fällig am</label>
+                    <input type="date" name="due_date" class="form-control" value="{{ invoice.due_date }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Land / MwSt</label>
+                    <select name="country" class="form-select" id="countrySelect">
+                        <option value="AT" {{ 'selected' if invoice.country == 'AT' }}>&Ouml;sterreich (20%)</option>
+                        <option value="DE" {{ 'selected' if invoice.country == 'DE' }}>Deutschland (19%/0%)</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-select">
+                        <option value="Offen" {{ 'selected' if invoice.status == 'Offen' }}>Offen</option>
+                        <option value="Bezahlt" {{ 'selected' if invoice.status == 'Bezahlt' }}>Bezahlt</option>
+                        <option value="Storniert" {{ 'selected' if invoice.status == 'Storniert' }}>Storniert</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Ersteller</label>
+                    <input type="text" name="creator_name" class="form-control"
+                           value="{{ invoice.creator_name }}" placeholder="z.B. David Sitter">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Kundendaten (Empfänger) -->
+    <div class="card mb-4">
+        <div class="card-header bg-teal text-white">
+            <i class="bi bi-person"></i> Empfänger
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-2">
+                    <label class="form-label">Anrede</label>
+                    <select name="customer_salutation" class="form-select">
+                        <option value="" {% if not invoice.customer_salutation %}selected{% endif %}>–</option>
+                        <option value="Herr" {% if invoice.customer_salutation == 'Herr' %}selected{% endif %}>Herr</option>
+                        <option value="Frau" {% if invoice.customer_salutation == 'Frau' %}selected{% endif %}>Frau</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Name *</label>
+                    <input type="text" name="customer_name" class="form-control"
+                           value="{{ invoice.customer_name }}" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Firma</label>
+                    <input type="text" name="customer_company" class="form-control"
+                           value="{{ invoice.customer_company }}">
+                </div>
+                <div class="col-md-5">
+                    <label class="form-label">Straße</label>
+                    <input type="text" name="customer_street" class="form-control"
+                           value="{{ invoice.customer_street }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">PLZ</label>
+                    <input type="text" name="customer_zip" class="form-control"
+                           value="{{ invoice.customer_zip }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Ort</label>
+                    <input type="text" name="customer_city" class="form-control"
+                           value="{{ invoice.customer_city }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Land (Text)</label>
+                    <input type="text" name="customer_country_label" class="form-control"
+                           value="{{ invoice.customer_country_label }}" placeholder="Österreich">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Telefon</label>
+                    <input type="text" name="customer_phone" class="form-control"
+                           value="{{ invoice.customer_phone }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">E-Mail</label>
+                    <input type="email" name="customer_email" class="form-control"
+                           value="{{ invoice.customer_email }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">UID (USt-IdNr.)</label>
+                    <input type="text" name="customer_uid" class="form-control"
+                           value="{{ invoice.customer_uid }}" placeholder="z.B. ATU12345678">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Positionen -->
+    <div class="card mb-4">
+        <div class="card-header bg-teal text-white d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-list-ol"></i> Positionen</span>
+            <div class="btn-group btn-group-sm">
+                <button type="button" class="btn btn-light" id="addItemBtn">
+                    <i class="bi bi-plus"></i> Leere Position
+                </button>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm mb-0" id="itemsTable">
+                    <thead class="table-secondary">
+                        <tr>
+                            <th style="width: 30px"></th>
+                            <th style="width: 45px">Pos</th>
+                            <th>Titel</th>
+                            <th>Beschreibung</th>
+                            <th style="width: 80px">Menge</th>
+                            <th style="width: 120px">Gesamtkosten &euro;</th>
+                            <th style="width: 60px" id="carportColHeader">
+                                <span title="Deutschland: Carport = 19% MwSt, Rest = 0%. Österreich: immer 20%.">
+                                    Carport?
+                                </span>
+                            </th>
+                            <th style="width: 40px"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="itemsBody">
+                        {% for item in items %}
+                        <tr class="item-row" data-index="{{ loop.index0 }}" draggable="true">
+                            <td class="align-middle text-center drag-handle" style="cursor: grab; color: #999;"><i class="bi bi-grip-vertical"></i></td>
+                            <td class="align-middle text-center pos-number">{{ loop.index }}</td>
+                            <td>
+                                <input type="text" name="item_title_{{ loop.index0 }}"
+                                       class="form-control form-control-sm" value="{{ item.title }}"
+                                       placeholder="z.B. PV-Carport Modell S2">
+                            </td>
+                            <td>
+                                <textarea name="item_description_{{ loop.index0 }}"
+                                          class="form-control form-control-sm" rows="2"
+                                          placeholder="Detailbeschreibung...">{{ item.description }}</textarea>
+                            </td>
+                            <td>
+                                <input type="text" name="item_quantity_{{ loop.index0 }}"
+                                       class="form-control form-control-sm" value="{{ item.quantity }}"
+                                       placeholder="1x">
+                            </td>
+                            <td>
+                                <input type="number" name="item_price_{{ loop.index0 }}"
+                                       class="form-control form-control-sm item-price" value="{{ item.total_price }}"
+                                       step="0.01" min="0">
+                            </td>
+                            <td class="text-center carport-col">
+                                <input type="checkbox" name="item_is_carport_{{ loop.index0 }}"
+                                       class="form-check-input item-carport" value="1"
+                                       {{ 'checked' if item.is_carport }}>
+                            </td>
+                            <td>
+                                <button type="button" class="btn btn-sm btn-outline-danger remove-item-btn">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card-footer">
+            <div class="row justify-content-center">
+                <div class="col-md-4">
+                    <table class="table table-sm mb-0">
+                        <tr>
+                            <td>Summe netto:</td>
+                            <td class="text-end" id="subtotal">0,00 &euro;</td>
+                        </tr>
+                        <tr>
+                            <td>MwSt:</td>
+                            <td class="text-end" id="vatTotal">0,00 &euro;</td>
+                        </tr>
+                        <tr class="fw-bold" style="background-color: var(--brand); color: white;">
+                            <td>Summe brutto:</td>
+                            <td class="text-end" id="grandTotal">0,00 &euro;</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Zusätzliche Rechnungsinformationen -->
+    <div class="card mb-4">
+        <div class="card-header bg-teal text-white">
+            <i class="bi bi-file-text"></i> Zusätzliche Rechnungsinformationen (Seite 2 im PDF)
+        </div>
+        <div class="card-body">
+            <textarea name="custom_terms" class="form-control" rows="10"
+                      placeholder="Zahlungsbedingungen, Konditionen, Hinweise...">{{ invoice.custom_terms }}</textarea>
+            <small class="text-muted">Dieser Text erscheint auf Seite 2 des PDFs.</small>
+        </div>
+    </div>
+
+    <!-- Notizen (intern) -->
+    <div class="card mb-4">
+        <div class="card-header bg-teal text-white">
+            <i class="bi bi-chat-text"></i> Interne Notizen (nicht im PDF)
+        </div>
+        <div class="card-body">
+            <textarea name="notes" class="form-control" rows="3"
+                      placeholder="Interne Notizen...">{{ invoice.notes }}</textarea>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2 mb-4">
+        <button type="submit" class="btn btn-teal btn-lg">
+            <i class="bi bi-save"></i> Rechnung speichern
+        </button>
+        <a href="{{ url_for('invoice_list') }}" class="btn btn-outline-secondary btn-lg">
+            <i class="bi bi-x-circle"></i> Abbrechen
+        </a>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/quote_form.js') }}?v=5"></script>
+{% endblock %}

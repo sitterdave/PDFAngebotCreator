@@ -102,6 +102,47 @@ def init_db():
             is_richtpreis INTEGER NOT NULL DEFAULT 0,
             FOREIGN KEY (quote_id) REFERENCES quotes(id) ON DELETE CASCADE
         );
+
+        CREATE TABLE IF NOT EXISTS invoices (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            invoice_number TEXT NOT NULL UNIQUE,
+            date TEXT NOT NULL,
+            due_date TEXT NOT NULL,
+            country TEXT NOT NULL DEFAULT 'AT',
+            status TEXT NOT NULL DEFAULT 'Offen',
+            customer_salutation TEXT DEFAULT '',
+            customer_name TEXT NOT NULL,
+            customer_company TEXT DEFAULT '',
+            customer_street TEXT DEFAULT '',
+            customer_zip TEXT DEFAULT '',
+            customer_city TEXT DEFAULT '',
+            customer_country_label TEXT DEFAULT '',
+            customer_phone TEXT DEFAULT '',
+            customer_email TEXT DEFAULT '',
+            customer_uid TEXT DEFAULT '',
+            project_name TEXT DEFAULT '',
+            project_description TEXT DEFAULT '',
+            creator_name TEXT DEFAULT '',
+            notes TEXT DEFAULT '',
+            custom_terms TEXT DEFAULT '',
+            source_quote_id INTEGER DEFAULT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS invoice_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            invoice_id INTEGER NOT NULL,
+            position INTEGER NOT NULL,
+            title TEXT NOT NULL DEFAULT '',
+            description TEXT NOT NULL DEFAULT '',
+            quantity TEXT NOT NULL DEFAULT '1x',
+            total_price REAL NOT NULL DEFAULT 0,
+            is_carport INTEGER NOT NULL DEFAULT 0,
+            is_optional INTEGER NOT NULL DEFAULT 0,
+            is_richtpreis INTEGER NOT NULL DEFAULT 0,
+            FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE
+        );
     ''')
 
     # Ensure default company settings row exists
@@ -864,3 +905,191 @@ def delete_product_template(template_id):
     conn.execute("DELETE FROM product_templates WHERE id = ?", (template_id,))
     conn.commit()
     conn.close()
+
+
+# --- Invoices ---
+
+def generate_invoice_number():
+    """Generate sequential invoice number: RE-YYYY-NNNN"""
+    conn = get_db()
+    year = datetime.now().strftime('%Y')
+    row = conn.execute(
+        "SELECT invoice_number FROM invoices WHERE invoice_number LIKE ? ORDER BY id DESC LIMIT 1",
+        (f'RE-{year}-%',)
+    ).fetchone()
+    if row:
+        try:
+            last_num = int(row['invoice_number'].split('-')[-1])
+            next_num = last_num + 1
+        except (ValueError, IndexError):
+            next_num = 1
+    else:
+        next_num = 1
+    conn.close()
+    return f'RE-{year}-{next_num:04d}'
+
+
+def create_invoice(data, items):
+    conn = get_db()
+    now = datetime.now().isoformat()
+    cursor = conn.execute('''
+        INSERT INTO invoices (invoice_number, date, due_date, country, status,
+            customer_salutation, customer_name, customer_company, customer_street, customer_zip,
+            customer_city, customer_country_label, customer_phone, customer_email,
+            customer_uid, project_name, project_description, creator_name, notes, custom_terms,
+            source_quote_id, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (
+        data['invoice_number'], data['date'], data['due_date'], data['country'],
+        data.get('status', 'Offen'),
+        data.get('customer_salutation', ''),
+        data['customer_name'], data.get('customer_company', ''),
+        data.get('customer_street', ''), data.get('customer_zip', ''),
+        data.get('customer_city', ''), data.get('customer_country_label', ''),
+        data.get('customer_phone', ''), data.get('customer_email', ''),
+        data.get('customer_uid', ''),
+        data.get('project_name', ''), data.get('project_description', ''),
+        data.get('creator_name', ''), data.get('notes', ''),
+        data.get('custom_terms', ''),
+        data.get('source_quote_id') or None, now, now
+    ))
+    invoice_id = cursor.lastrowid
+
+    for i, item in enumerate(items):
+        conn.execute('''
+            INSERT INTO invoice_items (invoice_id, position, title, description, quantity, total_price, is_carport, is_optional, is_richtpreis)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            invoice_id, i + 1, item.get('title', ''),
+            item.get('description', ''),
+            item.get('quantity', '1x'),
+            float(item.get('total_price', 0) or 0),
+            int(item.get('is_carport', 0)),
+            int(item.get('is_optional', 0)),
+            int(item.get('is_richtpreis', 0))
+        ))
+
+    conn.commit()
+    conn.close()
+    return invoice_id
+
+
+def get_invoice(invoice_id):
+    conn = get_db()
+    invoice = conn.execute("SELECT * FROM invoices WHERE id = ?", (invoice_id,)).fetchone()
+    if not invoice:
+        conn.close()
+        return None, []
+    items = conn.execute(
+        "SELECT * FROM invoice_items WHERE invoice_id = ? ORDER BY position", (invoice_id,)
+    ).fetchall()
+    conn.close()
+    return dict(invoice), [dict(i) for i in items]
+
+
+def get_all_invoices():
+    conn = get_db()
+    invoices = conn.execute("SELECT * FROM invoices ORDER BY id DESC").fetchall()
+    conn.close()
+    return [dict(inv) for inv in invoices]
+
+
+def update_invoice(invoice_id, data, items):
+    conn = get_db()
+    now = datetime.now().isoformat()
+    conn.execute('''
+        UPDATE invoices SET date=?, due_date=?, country=?, status=?,
+            customer_salutation=?, customer_name=?, customer_company=?, customer_street=?, customer_zip=?,
+            customer_city=?, customer_country_label=?, customer_phone=?, customer_email=?,
+            customer_uid=?, project_name=?, project_description=?, creator_name=?, notes=?, custom_terms=?,
+            updated_at=?
+        WHERE id=?
+    ''', (
+        data['date'], data['due_date'], data['country'],
+        data.get('status', 'Offen'),
+        data.get('customer_salutation', ''),
+        data['customer_name'], data.get('customer_company', ''),
+        data.get('customer_street', ''), data.get('customer_zip', ''),
+        data.get('customer_city', ''), data.get('customer_country_label', ''),
+        data.get('customer_phone', ''), data.get('customer_email', ''),
+        data.get('customer_uid', ''),
+        data.get('project_name', ''), data.get('project_description', ''),
+        data.get('creator_name', ''), data.get('notes', ''),
+        data.get('custom_terms', ''), now, invoice_id
+    ))
+
+    # Replace items
+    conn.execute("DELETE FROM invoice_items WHERE invoice_id = ?", (invoice_id,))
+    for i, item in enumerate(items):
+        conn.execute('''
+            INSERT INTO invoice_items (invoice_id, position, title, description, quantity, total_price, is_carport, is_optional, is_richtpreis)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            invoice_id, i + 1, item.get('title', ''),
+            item.get('description', ''),
+            item.get('quantity', '1x'),
+            float(item.get('total_price', 0) or 0),
+            int(item.get('is_carport', 0)),
+            int(item.get('is_optional', 0)),
+            int(item.get('is_richtpreis', 0))
+        ))
+
+    conn.commit()
+    conn.close()
+
+
+def delete_invoice(invoice_id):
+    conn = get_db()
+    conn.execute("DELETE FROM invoices WHERE id = ?", (invoice_id,))
+    conn.commit()
+    conn.close()
+
+
+def create_invoice_from_quote(quote_id):
+    """Create a new invoice from an existing quote, copying all data and items."""
+    quote, items = get_quote(quote_id)
+    if not quote:
+        return None
+
+    settings = get_company_settings()
+    today = datetime.now().strftime('%Y-%m-%d')
+    due_days = 14
+    due_date = (datetime.now() + timedelta(days=due_days)).strftime('%Y-%m-%d')
+
+    invoice_data = {
+        'invoice_number': generate_invoice_number(),
+        'date': today,
+        'due_date': due_date,
+        'country': quote['country'],
+        'status': 'Offen',
+        'customer_salutation': quote.get('customer_salutation', ''),
+        'customer_name': quote['customer_name'],
+        'customer_company': quote.get('customer_company', ''),
+        'customer_street': quote.get('customer_street', ''),
+        'customer_zip': quote.get('customer_zip', ''),
+        'customer_city': quote.get('customer_city', ''),
+        'customer_country_label': quote.get('customer_country_label', ''),
+        'customer_phone': quote.get('customer_phone', ''),
+        'customer_email': quote.get('customer_email', ''),
+        'customer_uid': quote.get('customer_uid', ''),
+        'project_name': quote.get('project_name', ''),
+        'project_description': quote.get('project_description', ''),
+        'creator_name': quote.get('creator_name', ''),
+        'notes': '',
+        'custom_terms': '',
+        'source_quote_id': quote_id,
+    }
+
+    invoice_items = []
+    for item in items:
+        invoice_items.append({
+            'title': item.get('title', ''),
+            'description': item.get('description', ''),
+            'quantity': item.get('quantity', '1x'),
+            'total_price': float(item.get('total_price', 0) or 0),
+            'is_carport': int(item.get('is_carport', 0)),
+            'is_optional': int(item.get('is_optional', 0)),
+            'is_richtpreis': int(item.get('is_richtpreis', 0)),
+        })
+
+    return create_invoice(invoice_data, invoice_items)

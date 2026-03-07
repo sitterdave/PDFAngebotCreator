@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+{% block title %}Rechnung {{ invoice.invoice_number }} - Angebot Creator{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-receipt"></i> Rechnung {{ invoice.invoice_number }}</h2>
+    <div class="btn-group">
+        <a href="{{ url_for('edit_invoice', invoice_id=invoice.id) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-pencil"></i> Bearbeiten
+        </a>
+        <a href="{{ url_for('preview_invoice_pdf', invoice_id=invoice.id) }}" class="btn btn-outline-primary" target="_blank">
+            <i class="bi bi-eye"></i> PDF Vorschau
+        </a>
+        <a href="{{ url_for('download_invoice_pdf', invoice_id=invoice.id) }}" class="btn btn-danger">
+            <i class="bi bi-file-pdf"></i> PDF herunterladen
+        </a>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Left column: Invoice details -->
+    <div class="col-md-8">
+        <!-- Two-column: Empfänger / Ersteller -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-header bg-teal text-white">
+                        <i class="bi bi-person"></i> Empfänger
+                    </div>
+                    <div class="card-body">
+                        {% if invoice.customer_company %}
+                            <strong>{{ invoice.customer_company }}</strong><br>
+                        {% endif %}
+                        {{ invoice.customer_name }}<br>
+                        {% if invoice.customer_street %}{{ invoice.customer_street }}<br>{% endif %}
+                        {% if invoice.customer_zip or invoice.customer_city %}
+                            {{ invoice.customer_zip }} {{ invoice.customer_city }}<br>
+                        {% endif %}
+                        {% if invoice.customer_country_label %}{{ invoice.customer_country_label }}<br>{% endif %}
+                        {% if invoice.customer_uid %}UID: {{ invoice.customer_uid }}<br>{% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-header bg-teal text-white">
+                        <i class="bi bi-building"></i> Ersteller
+                    </div>
+                    <div class="card-body">
+                        {% if invoice.creator_name %}{{ invoice.creator_name }}<br>{% endif %}
+                        {% if settings.company_name %}{{ settings.company_name }}<br>{% endif %}
+                        {% if settings.company_street %}
+                            {{ settings.company_zip }} {{ settings.company_city }} {{ settings.company_street }}<br>
+                        {% endif %}
+                        {% if settings.company_ust_id %}UID: {{ settings.company_ust_id }}<br>{% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Items -->
+        <div class="card mb-4">
+            <div class="card-header bg-teal text-white">
+                <i class="bi bi-list-ol"></i> Positionen
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table mb-0">
+                        <thead class="table-teal">
+                            <tr>
+                                <th style="width: 50px">Pos</th>
+                                <th>Beschreibung</th>
+                                <th style="width: 70px">Menge</th>
+                                <th class="text-end" style="width: 120px">Gesamtkosten [&euro;]</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in totals.positions %}
+                            {% if not item.is_optional %}
+                            <tr>
+                                <td class="text-center">{{ item.display_position }}</td>
+                                <td>
+                                    {% if item.title %}<strong>{{ item.title }}</strong><br>{% endif %}
+                                    <span class="text-muted">{{ item.description }}</span>
+                                    {% if item.is_carport and invoice.country == 'DE' %}
+                                        <span class="badge bg-info ms-1">Carport 19%</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">{{ item.quantity }}</td>
+                                <td class="text-end">{{ "%.2f"|format(item.total_price|float) }}</td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                        </tbody>
+                        {% set optional_items = totals.positions|selectattr('is_optional')|list %}
+                        {% if optional_items %}
+                        <tbody>
+                            <tr class="table-warning">
+                                <td colspan="4" class="fw-bold"><i class="bi bi-info-circle"></i> Optionale Positionen</td>
+                            </tr>
+                            {% for item in optional_items %}
+                            <tr class="table-warning" style="opacity: 0.85;">
+                                <td class="text-center">&ndash;</td>
+                                <td>
+                                    {% if item.title %}<strong>{{ item.title }}</strong><br>{% endif %}
+                                    <span class="text-muted">{{ item.description }}</span>
+                                    <span class="badge bg-warning text-dark ms-1">Optional</span>
+                                </td>
+                                <td class="text-center">{{ item.quantity }}</td>
+                                <td class="text-end">{{ "%.2f"|format(item.total_price|float) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer">
+                <div class="row justify-content-center">
+                    <div class="col-md-5">
+                        <table class="table table-sm mb-0">
+                            <tr>
+                                <td><strong>Summe netto [&euro;]</strong></td>
+                                <td class="text-end"><strong>{{ "%.2f"|format(totals.netto) }}</strong></td>
+                            </tr>
+                            {% if invoice.country == 'AT' %}
+                            <tr>
+                                <td>20 % MwSt.</td>
+                                <td class="text-end">{{ "%.2f"|format(totals.vat_total) }}</td>
+                            </tr>
+                            {% elif invoice.country == 'DE' %}
+                                {% set vat19 = totals.positions|selectattr('vat_rate', 'equalto', 19.0)|map(attribute='vat_amount')|sum %}
+                                {% if vat19 > 0 %}
+                                <tr>
+                                    <td>19 % MwSt. (Carport)</td>
+                                    <td class="text-end">{{ "%.2f"|format(vat19) }}</td>
+                                </tr>
+                                {% endif %}
+                                <tr>
+                                    <td>0 % MwSt. (Sonstiges)</td>
+                                    <td class="text-end">0,00</td>
+                                </tr>
+                            {% endif %}
+                            <tr class="fw-bold fs-5">
+                                <td><strong>Summe brutto [&euro;]</strong></td>
+                                <td class="text-end"><strong>{{ "%.2f"|format(totals.brutto) }}</strong></td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right column: Meta info -->
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header bg-teal text-white">
+                <i class="bi bi-info-circle"></i> Rechnungsdetails
+            </div>
+            <div class="card-body">
+                <table class="table table-sm mb-0">
+                    <tr>
+                        <td class="text-muted">Nummer:</td>
+                        <td>{{ invoice.invoice_number }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Datum:</td>
+                        <td>{{ invoice.date }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Fällig am:</td>
+                        <td>{{ invoice.due_date }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Status:</td>
+                        <td>
+                            {% if invoice.status == 'Bezahlt' %}
+                                <span class="badge bg-success">Bezahlt</span>
+                            {% elif invoice.status == 'Storniert' %}
+                                <span class="badge bg-danger">Storniert</span>
+                            {% else %}
+                                <span class="badge bg-warning text-dark">Offen</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Land:</td>
+                        <td>
+                            <span class="badge {{ 'bg-primary' if invoice.country == 'DE' else 'bg-teal' }}">
+                                {{ 'Deutschland' if invoice.country == 'DE' else 'Österreich' }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% if invoice.creator_name %}
+                    <tr>
+                        <td class="text-muted">Ersteller:</td>
+                        <td>{{ invoice.creator_name }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if invoice.source_quote_id %}
+                    <tr>
+                        <td class="text-muted">Aus Angebot:</td>
+                        <td>
+                            <a href="{{ url_for('view_quote', quote_id=invoice.source_quote_id) }}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-file-text"></i> Angebot ansehen
+                            </a>
+                        </td>
+                    </tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+
+        {% if invoice.notes %}
+        <div class="card mb-4">
+            <div class="card-header bg-teal text-white">
+                <i class="bi bi-chat-text"></i> Interne Notizen
+            </div>
+            <div class="card-body">
+                <p class="mb-0" style="white-space: pre-wrap;">{{ invoice.notes }}</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Delete -->
+        <div class="card border-danger">
+            <div class="card-body">
+                <form method="post" action="{{ url_for('delete_invoice_route', invoice_id=invoice.id) }}"
+                      onsubmit="return confirm('Rechnung wirklich löschen?')">
+                    <button type="submit" class="btn btn-outline-danger w-100">
+                        <i class="bi bi-trash"></i> Rechnung löschen
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

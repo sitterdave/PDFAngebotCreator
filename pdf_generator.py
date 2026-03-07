@@ -740,3 +740,220 @@ def _draw_totals_box(pdf, totals, country):
     pdf.set_font(f, 'B', 10)
     pdf.cell(label_w, 9, '  Summe brutto', border=0, align='L', fill=True)
     pdf.cell(val_w, 9, fmt(totals['brutto']) + ' \u20ac  ', border=0, align='R', fill=True)
+
+
+def generate_invoice_pdf(invoice, items):
+    """Generate a PDF for an invoice. Reuses the quote PDF layout with invoice-specific labels."""
+    company = get_company_settings()
+    totals = calculate_quote_totals(items, invoice['country'])
+
+    pdf = QuotePDF(company)
+    pdf.alias_nb_pages()
+    pdf.add_page()
+    f = pdf.f
+
+    # =====================================================
+    # PAGE 1: Invoice content
+    # =====================================================
+
+    # --- Title "Rechnung" ---
+    pdf.set_font(f, 'B', 20)
+    pdf.set_text_color(*BLUE)
+    pdf.cell(0, 10, 'Rechnung', ln=True)
+    pdf.ln(6)
+
+    # --- Two-column: Empfänger / Ersteller ---
+    y_block = pdf.get_y()
+
+    # Left: Empfänger
+    _draw_section_header(pdf, 'Empfänger')
+    pdf.set_font(f, '', 9)
+    pdf.set_text_color(*BLACK)
+
+    if invoice.get('customer_company'):
+        pdf.set_font(f, 'B', 9)
+        pdf.cell(90, 5, invoice['customer_company'], ln=True)
+        pdf.set_font(f, '', 9)
+    if invoice.get('customer_name'):
+        salutation = invoice.get('customer_salutation', '')
+        display_name = f"{salutation} {invoice['customer_name']}".strip() if salutation else invoice['customer_name']
+        pdf.cell(90, 5, display_name, ln=True)
+    if invoice.get('customer_street'):
+        pdf.cell(90, 5, invoice['customer_street'], ln=True)
+    zip_city = f"{invoice.get('customer_zip', '')} {invoice.get('customer_city', '')}".strip()
+    if zip_city:
+        pdf.cell(90, 5, zip_city, ln=True)
+    country_label = invoice.get('customer_country_label', '')
+    if country_label:
+        pdf.cell(90, 5, country_label, ln=True)
+    customer_uid = invoice.get('customer_uid', '')
+    if customer_uid:
+        pdf.cell(90, 5, f"UID: {customer_uid}", ln=True)
+
+    empf_end_y = pdf.get_y()
+
+    # Right: Ersteller
+    pdf.set_xy(115, y_block)
+    pdf.set_font(f, 'B', 10)
+    pdf.set_text_color(*BLUE)
+    pdf.cell(75, 6, 'Ersteller', ln=True)
+    pdf.set_draw_color(*BLUE)
+    pdf.set_line_width(0.4)
+    pdf.line(115, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(3)
+
+    pdf.set_font(f, '', 9)
+    pdf.set_text_color(*BLACK)
+
+    creator = invoice.get('creator_name', '')
+    if creator:
+        pdf.set_x(115)
+        pdf.set_font(f, 'B', 9)
+        pdf.cell(75, 5, creator, ln=True)
+        pdf.set_font(f, '', 9)
+    cname = company.get('company_name', '')
+    if cname:
+        pdf.set_x(115)
+        pdf.cell(75, 5, cname, ln=True)
+    cstreet = company.get('company_street', '')
+    if cstreet:
+        pdf.set_x(115)
+        pdf.cell(75, 5, cstreet, ln=True)
+    czip = company.get('company_zip', '')
+    ccity = company.get('company_city', '')
+    if czip or ccity:
+        pdf.set_x(115)
+        pdf.cell(75, 5, f"{czip} {ccity}".strip(), ln=True)
+    ccountry = company.get('company_country', '')
+    if ccountry == 'AT':
+        pdf.set_x(115)
+        pdf.cell(75, 5, 'Österreich', ln=True)
+    elif ccountry == 'DE':
+        pdf.set_x(115)
+        pdf.cell(75, 5, 'Deutschland', ln=True)
+    ust = company.get('company_ust_id', '')
+    if ust:
+        pdf.set_x(115)
+        pdf.cell(75, 5, f"UID: {ust}", ln=True)
+
+    # Move Y to max of both columns
+    pdf.set_y(max(empf_end_y, pdf.get_y()) + 8)
+
+    # --- Rechnungsdetails ---
+    _draw_section_header(pdf, 'Rechnungsdetails')
+    pdf.set_font(f, '', 9)
+    pdf.set_text_color(*BLACK)
+
+    label_w = 48
+    val_w = 80
+
+    # Rechnungsnummer
+    pdf.set_font(f, '', 8)
+    pdf.set_text_color(*GRAY)
+    pdf.cell(label_w, 5.5, 'Rechnungsnummer:', ln=False)
+    pdf.set_font(f, 'B', 9)
+    pdf.set_text_color(*BLACK)
+    pdf.cell(val_w, 5.5, invoice.get('invoice_number', ''), ln=True)
+
+    # Rechnungsdatum
+    pdf.set_font(f, '', 8)
+    pdf.set_text_color(*GRAY)
+    pdf.cell(label_w, 5.5, 'Rechnungsdatum:', ln=False)
+    pdf.set_font(f, '', 9)
+    pdf.set_text_color(*BLACK)
+    pdf.cell(val_w, 5.5, format_date_german(invoice.get('date', '')), ln=True)
+
+    # Fälligkeitsdatum
+    due_date = invoice.get('due_date', '')
+    if due_date:
+        pdf.set_font(f, '', 8)
+        pdf.set_text_color(*GRAY)
+        pdf.cell(label_w, 5.5, 'Fällig am:', ln=False)
+        pdf.set_font(f, '', 9)
+        pdf.set_text_color(*BLACK)
+        pdf.cell(val_w, 5.5, format_date_german(due_date), ln=True)
+
+    # Ersteller
+    if creator:
+        pdf.set_font(f, '', 8)
+        pdf.set_text_color(*GRAY)
+        pdf.cell(label_w, 5.5, 'Ersteller:', ln=False)
+        pdf.set_font(f, '', 9)
+        pdf.set_text_color(*BLACK)
+        pdf.cell(val_w, 5.5, creator, ln=True)
+
+    pdf.ln(6)
+
+    # --- Items table ---
+    _draw_items_table(pdf, totals, invoice['country'])
+
+    # --- Totals box ---
+    pdf.ln(4)
+    _draw_totals_box(pdf, totals, invoice['country'])
+
+    # --- Bank details for payment ---
+    pdf.ln(8)
+    _draw_payment_info(pdf, company, invoice)
+
+    # =====================================================
+    # PAGE 2: Additional terms (if any)
+    # =====================================================
+    terms = invoice.get('custom_terms', '')
+    if terms:
+        pdf.add_page()
+
+        _draw_section_header(pdf, 'Zusätzliche Rechnungsinformationen')
+        pdf.ln(2)
+
+        _draw_terms_text(pdf, terms)
+
+    return pdf.output()
+
+
+def _draw_payment_info(pdf, company, invoice):
+    """Draw payment/bank details section on the invoice."""
+    f = pdf.f
+
+    # Check page break
+    if pdf.get_y() + 30 > pdf.h - 30:
+        pdf.add_page()
+
+    _draw_section_header(pdf, 'Zahlungsinformationen')
+    pdf.set_font(f, '', 9)
+    pdf.set_text_color(*BLACK)
+
+    label_w = 48
+
+    bank = company.get('bank_name', '')
+    if bank:
+        pdf.set_font(f, '', 8)
+        pdf.set_text_color(*GRAY)
+        pdf.cell(label_w, 5.5, 'Bank:', ln=False)
+        pdf.set_font(f, '', 9)
+        pdf.set_text_color(*BLACK)
+        pdf.cell(0, 5.5, bank, ln=True)
+
+    iban = company.get('iban', '')
+    if iban:
+        pdf.set_font(f, '', 8)
+        pdf.set_text_color(*GRAY)
+        pdf.cell(label_w, 5.5, 'IBAN:', ln=False)
+        pdf.set_font(f, 'B', 9)
+        pdf.set_text_color(*BLACK)
+        pdf.cell(0, 5.5, iban, ln=True)
+
+    bic = company.get('bic', '')
+    if bic:
+        pdf.set_font(f, '', 8)
+        pdf.set_text_color(*GRAY)
+        pdf.cell(label_w, 5.5, 'BIC:', ln=False)
+        pdf.set_font(f, '', 9)
+        pdf.set_text_color(*BLACK)
+        pdf.cell(0, 5.5, bic, ln=True)
+
+    due_date = invoice.get('due_date', '')
+    if due_date:
+        pdf.ln(3)
+        pdf.set_font(f, 'B', 9)
+        pdf.set_text_color(*BLUE)
+        pdf.cell(0, 5.5, f"Bitte überweisen Sie den Betrag bis zum {format_date_german(due_date)}.", ln=True)
