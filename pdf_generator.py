@@ -931,10 +931,10 @@ def generate_invoice_pdf(invoice, items):
 
 
 def _draw_final_invoice_totals(pdf, totals, country, deposit_amount_paid, linked_deposit_number=''):
-    """Draw the Endrechnung totals: full amount minus deposit already paid = remaining."""
+    """Draw the Endrechnung totals: full amount minus deposit (with netto/USt breakdown) = remaining."""
     f = pdf.f
 
-    label_w = 45
+    label_w = 55
     val_w = 40
     total_w = label_w + val_w
     page_w = 210
@@ -942,16 +942,17 @@ def _draw_final_invoice_totals(pdf, totals, country, deposit_amount_paid, linked
 
     pdf.set_line_width(0.3)
 
-    if pdf.get_y() + 55 > pdf.h - 20:
+    if pdf.get_y() + 70 > pdf.h - 20:
         pdf.add_page()
 
     y_start = pdf.get_y() + 4
 
+    # --- Gesamtleistung ---
     # Summe netto
     pdf.set_xy(box_x, y_start)
     pdf.set_font(f, '', 9)
     pdf.set_text_color(*GRAY)
-    pdf.cell(label_w, 7, 'Summe netto', border=0, align='L')
+    pdf.cell(label_w, 7, 'Gesamtleistung netto', border=0, align='L')
     pdf.set_text_color(*BLACK)
     pdf.cell(val_w, 7, fmt(totals['netto']) + ' \u20ac', border=0, align='R')
     pdf.ln()
@@ -961,7 +962,9 @@ def _draw_final_invoice_totals(pdf, totals, country, deposit_amount_paid, linked
     pdf.line(box_x, pdf.get_y(), box_x + total_w, pdf.get_y())
 
     # MwSt
+    vat_rate_label = ''
     if country == 'AT':
+        vat_rate_label = '20 %'
         pdf.set_xy(box_x, pdf.get_y())
         pdf.set_font(f, '', 9)
         pdf.set_text_color(*GRAY)
@@ -970,6 +973,7 @@ def _draw_final_invoice_totals(pdf, totals, country, deposit_amount_paid, linked
         pdf.cell(val_w, 7, fmt(totals['vat_total']) + ' \u20ac', border=0, align='R')
         pdf.ln()
     elif country == 'DE':
+        vat_rate_label = '19 %'
         vat_19 = sum(i['vat_amount'] for i in totals['positions'] if i['vat_rate'] == 19.0)
         if vat_19 > 0:
             pdf.set_xy(box_x, pdf.get_y())
@@ -980,39 +984,80 @@ def _draw_final_invoice_totals(pdf, totals, country, deposit_amount_paid, linked
             pdf.cell(val_w, 7, fmt(vat_19) + ' \u20ac', border=0, align='R')
             pdf.ln()
 
-    # Summe brutto
+    # Gesamtleistung brutto
     pdf.set_xy(box_x, pdf.get_y() + 1)
     pdf.set_font(f, 'B', 10)
     pdf.set_text_color(*BLACK)
-    pdf.cell(label_w, 8, 'Summe brutto', border=0, align='L')
+    pdf.cell(label_w, 8, 'Gesamtleistung brutto', border=0, align='L')
     pdf.cell(val_w, 8, fmt(totals['brutto']) + ' \u20ac', border=0, align='R')
     pdf.ln()
 
-    # Separator
-    pdf.set_draw_color(*BLUE)
-    pdf.set_line_width(0.4)
-    pdf.line(box_x, pdf.get_y(), box_x + total_w, pdf.get_y())
-    pdf.ln(2)
-
-    # Abzüglich Anzahlung
+    # --- Abzüglich Anzahlung (mit Netto/USt-Aufschlüsselung) ---
     if deposit_amount_paid > 0:
-        deposit_label = 'Abzgl. Anzahlung'
+        pdf.set_draw_color(*BLUE)
+        pdf.set_line_width(0.4)
+        pdf.line(box_x, pdf.get_y(), box_x + total_w, pdf.get_y())
+        pdf.ln(3)
+
+        # Header: Abzgl. Anzahlung
+        deposit_label = 'Abz\u00fcgl. erhaltene Anzahlung'
         if linked_deposit_number:
-            deposit_label = f'Abzgl. Anzahlung (Rg. {linked_deposit_number})'
+            deposit_label += f' (Rg. {linked_deposit_number})'
+
         pdf.set_xy(box_x, pdf.get_y())
-        pdf.set_font(f, '', 9)
+        pdf.set_font(f, 'B', 9)
         pdf.set_text_color(*GRAY)
-        # Use wider label for reference text
-        ref_label_w = label_w + 15 if linked_deposit_number else label_w
-        ref_val_w = val_w - 15 if linked_deposit_number else val_w
-        pdf.cell(ref_label_w, 7, deposit_label, border=0, align='L')
-        pdf.set_text_color(*BLACK)
-        pdf.cell(ref_val_w, 7, '- ' + fmt(deposit_amount_paid) + ' \u20ac', border=0, align='R')
+        pdf.cell(label_w + val_w, 6, deposit_label, border=0, align='L')
         pdf.ln()
 
-    # Restbetrag - highlighted
+        # Netto/USt breakdown of deposit
+        # Calculate: deposit brutto = deposit_amount_paid
+        # For AT: netto = brutto / 1.20, vat = brutto - netto
+        # For DE: netto = brutto / 1.19, vat = brutto - netto (for carport items)
+        if country == 'AT':
+            deposit_netto = deposit_amount_paid / 1.20
+            deposit_vat = deposit_amount_paid - deposit_netto
+        elif country == 'DE':
+            deposit_netto = deposit_amount_paid / 1.19
+            deposit_vat = deposit_amount_paid - deposit_netto
+        else:
+            deposit_netto = deposit_amount_paid
+            deposit_vat = 0
+
+        pdf.set_font(f, '', 8)
+        pdf.set_text_color(*GRAY)
+
+        # davon Netto
+        pdf.set_xy(box_x + 3, pdf.get_y())
+        pdf.cell(label_w - 3, 5.5, 'davon Netto:', border=0, align='L')
+        pdf.set_text_color(*BLACK)
+        pdf.cell(val_w, 5.5, '- ' + fmt(deposit_netto) + ' \u20ac', border=0, align='R')
+        pdf.ln()
+
+        # davon USt
+        if deposit_vat > 0:
+            pdf.set_text_color(*GRAY)
+            pdf.set_xy(box_x + 3, pdf.get_y())
+            vat_label = f'davon {vat_rate_label} MwSt.:' if vat_rate_label else 'davon MwSt.:'
+            pdf.cell(label_w - 3, 5.5, vat_label, border=0, align='L')
+            pdf.set_text_color(*BLACK)
+            pdf.cell(val_w, 5.5, '- ' + fmt(deposit_vat) + ' \u20ac', border=0, align='R')
+            pdf.ln()
+
+        # Anzahlung brutto
+        pdf.set_font(f, '', 9)
+        pdf.set_text_color(*GRAY)
+        pdf.set_xy(box_x + 3, pdf.get_y())
+        pdf.cell(label_w - 3, 6, 'Anzahlung brutto:', border=0, align='L')
+        pdf.set_text_color(*BLACK)
+        pdf.set_font(f, 'B', 9)
+        pdf.cell(val_w, 6, '- ' + fmt(deposit_amount_paid) + ' \u20ac', border=0, align='R')
+        pdf.ln()
+
+    # --- Restbetrag - highlighted ---
+    pdf.ln(2)
     remaining = totals['brutto'] - deposit_amount_paid
-    pdf.set_xy(box_x, pdf.get_y() + 1)
+    pdf.set_xy(box_x, pdf.get_y())
     pdf.set_fill_color(*BLUE)
     pdf.set_text_color(*WHITE)
     pdf.set_font(f, 'B', 10)
@@ -1080,6 +1125,11 @@ def _draw_deposit_invoice_body(pdf, totals, invoice, company, deposit_percent):
         pdf.cell(label_w, 6, '20 % MwSt.:', ln=False)
         pdf.set_text_color(*BLACK)
         pdf.cell(val_w, 6, fmt(vat_total) + ' \u20ac', align='R', ln=True)
+    elif country == 'DE' and vat_total > 0:
+        pdf.set_text_color(*GRAY)
+        pdf.cell(label_w, 6, '19 % MwSt.:', ln=False)
+        pdf.set_text_color(*BLACK)
+        pdf.cell(val_w, 6, fmt(vat_total) + ' \u20ac', align='R', ln=True)
 
     # Gesamtpreis brutto
     pdf.set_font(f, 'B', 10)
@@ -1096,6 +1146,7 @@ def _draw_deposit_invoice_body(pdf, totals, invoice, company, deposit_percent):
 
     # --- Anzahlung highlight ---
     pct_int = int(deposit_percent) if deposit_percent == int(deposit_percent) else deposit_percent
+    vat_label = '20 %' if country == 'AT' else '19 %'
 
     # Anzahlung netto
     pdf.set_font(f, '', 9)
@@ -1105,9 +1156,9 @@ def _draw_deposit_invoice_body(pdf, totals, invoice, company, deposit_percent):
     pdf.cell(val_w, 6, fmt(deposit_netto) + ' \u20ac', align='R', ln=True)
 
     # Anzahlung MwSt
-    if country == 'AT':
+    if deposit_vat > 0:
         pdf.set_text_color(*GRAY)
-        pdf.cell(label_w, 6, f'20 % MwSt. auf Anzahlung:', ln=False)
+        pdf.cell(label_w, 6, f'{vat_label} MwSt. auf Anzahlung:', ln=False)
         pdf.set_text_color(*BLACK)
         pdf.cell(val_w, 6, fmt(deposit_vat) + ' \u20ac', align='R', ln=True)
 
