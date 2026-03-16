@@ -756,10 +756,14 @@ def generate_invoice_pdf(invoice, items):
     # PAGE 1: Invoice content
     # =====================================================
 
-    # --- Title "Rechnung" ---
+    # --- Title (Rechnung or Anzahlungsrechnung) ---
+    invoice_type = invoice.get('invoice_type', 'Rechnung') or 'Rechnung'
+    is_deposit = (invoice_type == 'Anzahlungsrechnung')
+    deposit_percent = float(invoice.get('deposit_percent', 50) or 50)
+
     pdf.set_font(f, 'B', 20)
     pdf.set_text_color(*BLUE)
-    pdf.cell(0, 10, 'Rechnung', ln=True)
+    pdf.cell(0, 10, invoice_type, ln=True)
     pdf.ln(6)
 
     # --- Two-column: Empfänger / Ersteller ---
@@ -884,16 +888,21 @@ def generate_invoice_pdf(invoice, items):
 
     pdf.ln(6)
 
-    # --- Items table ---
-    _draw_items_table(pdf, totals, invoice['country'])
+    if is_deposit:
+        # --- Anzahlungsrechnung: special layout ---
+        _draw_deposit_invoice_body(pdf, totals, invoice, company, deposit_percent)
+    else:
+        # --- Normal Rechnung ---
+        # --- Items table ---
+        _draw_items_table(pdf, totals, invoice['country'])
 
-    # --- Totals box ---
-    pdf.ln(4)
-    _draw_totals_box(pdf, totals, invoice['country'])
+        # --- Totals box ---
+        pdf.ln(4)
+        _draw_totals_box(pdf, totals, invoice['country'])
 
-    # --- Bank details for payment ---
-    pdf.ln(8)
-    _draw_payment_info(pdf, company, invoice)
+        # --- Bank details for payment ---
+        pdf.ln(8)
+        _draw_payment_info(pdf, company, invoice)
 
     # =====================================================
     # PAGE 2: Additional terms (if any)
@@ -908,6 +917,128 @@ def generate_invoice_pdf(invoice, items):
         _draw_terms_text(pdf, terms)
 
     return pdf.output()
+
+
+def _draw_deposit_invoice_body(pdf, totals, invoice, company, deposit_percent):
+    """Draw the special Anzahlungsrechnung body: positions with deposit calculation."""
+    f = pdf.f
+    country = invoice['country']
+
+    # --- Positions section header ---
+    _draw_section_header(pdf, 'Positionen')
+
+    # List each position with its total price
+    regular_items = [i for i in totals['positions'] if not int(i.get('is_optional', 0) or 0)]
+
+    for idx, item in enumerate(regular_items):
+        title = item.get('title', '')
+        desc = item.get('description', '')
+        price = float(item.get('total_price', 0) or 0)
+
+        pdf.set_font(f, 'B', 10)
+        pdf.set_text_color(*BLACK)
+        pos_label = f"Pos. {idx + 1}: {title}"
+        pdf.cell(130, 6, pos_label, ln=False)
+        pdf.set_font(f, '', 10)
+        pdf.cell(0, 6, fmt(price) + ' \u20ac', align='R', ln=True)
+
+        if desc:
+            pdf.set_font(f, '', 8)
+            pdf.set_text_color(*GRAY)
+            pdf.multi_cell(170, 4, desc, align='L')
+
+        pdf.ln(2)
+
+    # --- Totals: Gesamtpreis brutto ---
+    pdf.ln(4)
+    pdf.set_draw_color(*BLUE)
+    pdf.set_line_width(0.4)
+    pdf.line(pdf.l_margin, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(4)
+
+    brutto = totals['brutto']
+    netto = totals['netto']
+    vat_total = totals['vat_total']
+    deposit_netto = netto * deposit_percent / 100.0
+    deposit_vat = vat_total * deposit_percent / 100.0
+    deposit_brutto = brutto * deposit_percent / 100.0
+
+    label_w = 120
+    val_w = 60
+
+    # Gesamtpreis netto
+    pdf.set_font(f, '', 9)
+    pdf.set_text_color(*GRAY)
+    pdf.cell(label_w, 6, 'Gesamtpreis netto:', ln=False)
+    pdf.set_text_color(*BLACK)
+    pdf.cell(val_w, 6, fmt(netto) + ' \u20ac', align='R', ln=True)
+
+    # MwSt
+    if country == 'AT':
+        pdf.set_text_color(*GRAY)
+        pdf.cell(label_w, 6, '20 % MwSt.:', ln=False)
+        pdf.set_text_color(*BLACK)
+        pdf.cell(val_w, 6, fmt(vat_total) + ' \u20ac', align='R', ln=True)
+
+    # Gesamtpreis brutto
+    pdf.set_font(f, 'B', 10)
+    pdf.set_text_color(*BLACK)
+    pdf.cell(label_w, 7, 'Gesamtpreis brutto:', ln=False)
+    pdf.cell(val_w, 7, fmt(brutto) + ' \u20ac', align='R', ln=True)
+
+    # --- Separator ---
+    pdf.ln(4)
+    pdf.set_draw_color(*BLUE)
+    pdf.set_line_width(0.6)
+    pdf.line(pdf.l_margin, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(6)
+
+    # --- Anzahlung highlight ---
+    pct_int = int(deposit_percent) if deposit_percent == int(deposit_percent) else deposit_percent
+
+    # Anzahlung netto
+    pdf.set_font(f, '', 9)
+    pdf.set_text_color(*GRAY)
+    pdf.cell(label_w, 6, f'Anzahlung {pct_int} % netto:', ln=False)
+    pdf.set_text_color(*BLACK)
+    pdf.cell(val_w, 6, fmt(deposit_netto) + ' \u20ac', align='R', ln=True)
+
+    # Anzahlung MwSt
+    if country == 'AT':
+        pdf.set_text_color(*GRAY)
+        pdf.cell(label_w, 6, f'20 % MwSt. auf Anzahlung:', ln=False)
+        pdf.set_text_color(*BLACK)
+        pdf.cell(val_w, 6, fmt(deposit_vat) + ' \u20ac', align='R', ln=True)
+
+    # Anzahlungsbetrag brutto - blue highlighted box
+    pdf.ln(2)
+    box_x = 60
+    box_w = 140
+    pdf.set_xy(box_x, pdf.get_y())
+    pdf.set_fill_color(*BLUE)
+    pdf.set_text_color(*WHITE)
+    pdf.set_font(f, 'B', 11)
+    pdf.cell(80, 10, f'  Anzahlung {pct_int} %', border=0, align='L', fill=True)
+    pdf.cell(box_w - 80, 10, fmt(deposit_brutto) + ' \u20ac  ', border=0, align='R', fill=True)
+    pdf.ln(14)
+
+    # --- Beschreibungstext ---
+    pdf.set_text_color(*BLACK)
+    pdf.set_font(f, '', 9)
+
+    # Build description text from positions
+    position_names = [item.get('title', '') for item in regular_items if item.get('title', '')]
+    positions_text = ', '.join(position_names) if position_names else 'die beauftragten Leistungen'
+
+    deposit_text = (
+        f"Anzahlungsrechnung \u00fcber {pct_int} % des Auftragswertes f\u00fcr {positions_text}. "
+        f"Restzahlung erfolgt nach Fertigstellung und Lieferung."
+    )
+    pdf.multi_cell(0, 5, deposit_text, align='L')
+
+    # --- Bank details for payment ---
+    pdf.ln(8)
+    _draw_payment_info(pdf, company, invoice)
 
 
 def _draw_payment_info(pdf, company, invoice):

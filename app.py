@@ -306,6 +306,8 @@ def new_invoice():
         'creator_name': default_creator,
         'notes': '',
         'custom_terms': settings.get('invoice_terms_text', ''),
+        'invoice_type': 'Rechnung',
+        'deposit_percent': 50,
     }
     items = []
     return render_template('invoice_form.html', invoice=invoice, items=items, is_new=True)
@@ -334,6 +336,8 @@ def save_invoice():
         'creator_name': request.form.get('creator_name', ''),
         'notes': request.form.get('notes', ''),
         'custom_terms': request.form.get('custom_terms', ''),
+        'invoice_type': request.form.get('invoice_type', 'Rechnung'),
+        'deposit_percent': float(request.form.get('deposit_percent', 50) or 50),
     }
 
     items = parse_items_from_form(request.form)
@@ -384,7 +388,8 @@ def download_invoice_pdf(invoice_id):
         return redirect(url_for('invoice_list'))
 
     pdf_bytes = generate_invoice_pdf(invoice, items)
-    filename = f"Rechnung_{invoice['invoice_number'].replace('/', '-').replace(':', '-').replace(' ', '_')}.pdf"
+    inv_type = invoice.get('invoice_type', 'Rechnung') or 'Rechnung'
+    filename = f"{inv_type}_{invoice['invoice_number'].replace('/', '-').replace(':', '-').replace(' ', '_')}.pdf"
 
     pdf_dir = os.path.join(app.root_path, 'pdfs')
     os.makedirs(pdf_dir, exist_ok=True)

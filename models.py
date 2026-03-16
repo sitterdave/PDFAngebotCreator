@@ -126,6 +126,8 @@ def init_db():
             creator_name TEXT DEFAULT '',
             notes TEXT DEFAULT '',
             custom_terms TEXT DEFAULT '',
+            invoice_type TEXT NOT NULL DEFAULT 'Rechnung',
+            deposit_percent REAL DEFAULT 50,
             source_quote_id INTEGER DEFAULT NULL,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
@@ -204,6 +206,7 @@ def init_db():
     _migrate_product_template_data(conn)
     _migrate_product_prices(conn)
     _migrate_company_settings_columns(conn)
+    _migrate_invoice_columns(conn)
 
     # Seed product templates if empty
     count = conn.execute("SELECT COUNT(*) as c FROM product_templates").fetchone()['c']
@@ -453,6 +456,17 @@ def _migrate_product_prices(conn):
     conn.execute("""UPDATE product_templates SET price_1_slot = 1098.00
         WHERE title = 'Wechselrichter' AND category = 'Komponenten'""")
     conn.commit()
+
+
+def _migrate_invoice_columns(conn):
+    """Add invoice_type and deposit_percent columns to invoices if they don't exist yet."""
+    existing = [col[1] for col in conn.execute("PRAGMA table_info(invoices)").fetchall()]
+    if 'invoice_type' not in existing:
+        conn.execute("ALTER TABLE invoices ADD COLUMN invoice_type TEXT NOT NULL DEFAULT 'Rechnung'")
+        conn.commit()
+    if 'deposit_percent' not in existing:
+        conn.execute("ALTER TABLE invoices ADD COLUMN deposit_percent REAL DEFAULT 50")
+        conn.commit()
 
 
 def _migrate_company_settings_columns(conn):
@@ -977,8 +991,9 @@ def create_invoice(data, items):
             customer_salutation, customer_name, customer_company, customer_street, customer_zip,
             customer_city, customer_country_label, customer_phone, customer_email,
             customer_uid, project_name, project_description, creator_name, notes, custom_terms,
+            invoice_type, deposit_percent,
             source_quote_id, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         data['invoice_number'], data['date'], data['due_date'], data['country'],
         data.get('status', 'Offen'),
@@ -991,6 +1006,8 @@ def create_invoice(data, items):
         data.get('project_name', ''), data.get('project_description', ''),
         data.get('creator_name', ''), data.get('notes', ''),
         data.get('custom_terms', ''),
+        data.get('invoice_type', 'Rechnung'),
+        float(data.get('deposit_percent', 50) or 50),
         data.get('source_quote_id') or None, now, now
     ))
     invoice_id = cursor.lastrowid
@@ -1042,6 +1059,7 @@ def update_invoice(invoice_id, data, items):
             customer_salutation=?, customer_name=?, customer_company=?, customer_street=?, customer_zip=?,
             customer_city=?, customer_country_label=?, customer_phone=?, customer_email=?,
             customer_uid=?, project_name=?, project_description=?, creator_name=?, notes=?, custom_terms=?,
+            invoice_type=?, deposit_percent=?,
             updated_at=?
         WHERE id=?
     ''', (
@@ -1055,7 +1073,10 @@ def update_invoice(invoice_id, data, items):
         data.get('customer_uid', ''),
         data.get('project_name', ''), data.get('project_description', ''),
         data.get('creator_name', ''), data.get('notes', ''),
-        data.get('custom_terms', ''), now, invoice_id
+        data.get('custom_terms', ''),
+        data.get('invoice_type', 'Rechnung'),
+        float(data.get('deposit_percent', 50) or 50),
+        now, invoice_id
     ))
 
     # Replace items

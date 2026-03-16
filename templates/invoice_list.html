@@ -48,7 +48,12 @@
         <tbody>
             {% for inv in invoices %}
             <tr>
-                <td><strong>{{ inv.invoice_number }}</strong></td>
+                <td>
+                    <strong>{{ inv.invoice_number }}</strong>
+                    {% if inv.invoice_type == 'Anzahlungsrechnung' %}
+                        <br><span class="badge bg-info">Anzahlung</span>
+                    {% endif %}
+                </td>
                 <td>{{ inv.date }}</td>
                 <td>{{ inv.due_date }}</td>
                 <td>{{ inv.customer_name }}</td>

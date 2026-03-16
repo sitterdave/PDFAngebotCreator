@@ -145,6 +145,12 @@
                                 <td><strong>Summe brutto [&euro;]</strong></td>
                                 <td class="text-end"><strong>{{ "%.2f"|format(totals.brutto) }}</strong></td>
                             </tr>
+                            {% if invoice.invoice_type == 'Anzahlungsrechnung' %}
+                            <tr class="table-info fw-bold">
+                                <td>Anzahlung {{ invoice.deposit_percent|int }} %</td>
+                                <td class="text-end">{{ "%.2f"|format(totals.brutto * invoice.deposit_percent / 100) }}</td>
+                            </tr>
+                            {% endif %}
                         </table>
                     </div>
                 </div>
@@ -190,6 +196,16 @@
                             <span class="badge {{ 'bg-primary' if invoice.country == 'DE' else 'bg-teal' }}">
                                 {{ 'Deutschland' if invoice.country == 'DE' else 'Österreich' }}
                             </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Typ:</td>
+                        <td>
+                            {% if invoice.invoice_type == 'Anzahlungsrechnung' %}
+                                <span class="badge bg-info">Anzahlungsrechnung ({{ invoice.deposit_percent|int }} %)</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Rechnung</span>
+                            {% endif %}
                         </td>
                     </tr>
                     {% if invoice.creator_name %}

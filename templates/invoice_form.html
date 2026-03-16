@@ -52,6 +52,18 @@
                     <input type="text" name="creator_name" class="form-control"
                            value="{{ invoice.creator_name }}" placeholder="z.B. David Sitter">
                 </div>
+                <div class="col-md-3">
+                    <label class="form-label">Rechnungstyp</label>
+                    <select name="invoice_type" class="form-select" id="invoiceTypeSelect">
+                        <option value="Rechnung" {{ 'selected' if invoice.invoice_type != 'Anzahlungsrechnung' }}>Rechnung</option>
+                        <option value="Anzahlungsrechnung" {{ 'selected' if invoice.invoice_type == 'Anzahlungsrechnung' }}>Anzahlungsrechnung</option>
+                    </select>
+                </div>
+                <div class="col-md-2" id="depositPercentGroup" style="{{ '' if invoice.invoice_type == 'Anzahlungsrechnung' else 'display:none;' }}">
+                    <label class="form-label">Anzahlung %</label>
+                    <input type="number" name="deposit_percent" class="form-control"
+                           value="{{ invoice.deposit_percent|default(50) }}" min="1" max="100" step="1" id="depositPercent">
+                </div>
             </div>
         </div>
     </div>
@@ -248,4 +260,15 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/quote_form.js') }}?v=5"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const typeSelect = document.getElementById('invoiceTypeSelect');
+    const depositGroup = document.getElementById('depositPercentGroup');
+    if (typeSelect && depositGroup) {
+        typeSelect.addEventListener('change', function() {
+            depositGroup.style.display = this.value === 'Anzahlungsrechnung' ? '' : 'none';
+        });
+    }
+});
+</script>
 {% endblock %}
