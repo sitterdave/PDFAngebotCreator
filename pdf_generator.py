@@ -1066,36 +1066,14 @@ def _draw_final_invoice_totals(pdf, totals, country, deposit_amount_paid, linked
 
 
 def _draw_deposit_invoice_body(pdf, totals, invoice, company, deposit_percent):
-    """Draw the special Anzahlungsrechnung body: positions with deposit calculation."""
+    """Draw the Anzahlungsrechnung: same items table as normal invoice, then deposit totals."""
     f = pdf.f
     country = invoice['country']
 
-    # --- Positions section header ---
-    _draw_section_header(pdf, 'Positionen')
+    # --- Same professional items table as normal invoice ---
+    _draw_items_table(pdf, totals, country)
 
-    # List each position with its total price
-    regular_items = [i for i in totals['positions'] if not int(i.get('is_optional', 0) or 0)]
-
-    for idx, item in enumerate(regular_items):
-        title = item.get('title', '')
-        desc = item.get('description', '')
-        price = float(item.get('total_price', 0) or 0)
-
-        pdf.set_font(f, 'B', 10)
-        pdf.set_text_color(*BLACK)
-        pos_label = f"Pos. {idx + 1}: {title}"
-        pdf.cell(130, 6, pos_label, ln=False)
-        pdf.set_font(f, '', 10)
-        pdf.cell(0, 6, fmt(price) + ' \u20ac', align='R', ln=True)
-
-        if desc:
-            pdf.set_font(f, '', 8)
-            pdf.set_text_color(*GRAY)
-            pdf.multi_cell(170, 4, desc, align='L')
-
-        pdf.ln(2)
-
-    # --- Totals centered like normal invoice ---
+    # --- Deposit totals box ---
     pdf.ln(4)
 
     brutto = totals['brutto']
@@ -1116,7 +1094,7 @@ def _draw_deposit_invoice_body(pdf, totals, invoice, company, deposit_percent):
     pdf.set_line_width(0.3)
 
     # Ensure totals box fits on page
-    if pdf.get_y() + 65 > pdf.h - 20:
+    if pdf.get_y() + 70 > pdf.h - 20:
         pdf.add_page()
 
     y_start = pdf.get_y() + 4
@@ -1125,7 +1103,7 @@ def _draw_deposit_invoice_body(pdf, totals, invoice, company, deposit_percent):
     pdf.set_xy(box_x, y_start)
     pdf.set_font(f, '', 9)
     pdf.set_text_color(*GRAY)
-    pdf.cell(label_w, 7, 'Gesamtpreis netto', border=0, align='L')
+    pdf.cell(label_w, 7, 'Summe netto', border=0, align='L')
     pdf.set_text_color(*BLACK)
     pdf.cell(val_w, 7, fmt(netto) + ' \u20ac', border=0, align='R')
     pdf.ln()
@@ -1152,11 +1130,11 @@ def _draw_deposit_invoice_body(pdf, totals, invoice, company, deposit_percent):
         pdf.cell(val_w, 7, fmt(vat_total) + ' \u20ac', border=0, align='R')
         pdf.ln()
 
-    # Gesamtpreis brutto
+    # Summe brutto
     pdf.set_xy(box_x, pdf.get_y() + 1)
     pdf.set_font(f, 'B', 10)
     pdf.set_text_color(*BLACK)
-    pdf.cell(label_w, 8, 'Gesamtpreis brutto', border=0, align='L')
+    pdf.cell(label_w, 8, 'Summe brutto', border=0, align='L')
     pdf.cell(val_w, 8, fmt(brutto) + ' \u20ac', border=0, align='R')
     pdf.ln()
 
@@ -1175,6 +1153,10 @@ def _draw_deposit_invoice_body(pdf, totals, invoice, company, deposit_percent):
     pdf.cell(val_w, 7, fmt(deposit_netto) + ' \u20ac', border=0, align='R')
     pdf.ln()
 
+    # Separator
+    pdf.set_draw_color(210, 210, 210)
+    pdf.line(box_x, pdf.get_y(), box_x + total_w, pdf.get_y())
+
     # Anzahlung MwSt
     if deposit_vat > 0:
         pdf.set_xy(box_x, pdf.get_y())
@@ -1185,28 +1167,16 @@ def _draw_deposit_invoice_body(pdf, totals, invoice, company, deposit_percent):
         pdf.cell(val_w, 7, fmt(deposit_vat) + ' \u20ac', border=0, align='R')
         pdf.ln()
 
-    # Anzahlungsbetrag brutto - blue highlighted box (full width of totals box)
+    # Anzahlungsbetrag brutto - blue highlighted box
     pdf.set_xy(box_x, pdf.get_y() + 1)
     pdf.set_fill_color(*BLUE)
     pdf.set_text_color(*WHITE)
     pdf.set_font(f, 'B', 10)
     pdf.cell(label_w, 9, f'  Anzahlung {pct_int} %', border=0, align='L', fill=True)
     pdf.cell(val_w, 9, fmt(deposit_brutto) + ' \u20ac  ', border=0, align='R', fill=True)
-    pdf.ln(14)
-
-    # --- Kurzer Beschreibungstext ---
-    pdf.set_text_color(*BLACK)
-    pdf.set_font(f, '', 9)
-
-    deposit_text = (
-        f"Anzahlungsrechnung \u00fcber {pct_int} % des Auftragswertes. "
-        f"Restzahlung erfolgt nach Fertigstellung und Lieferung."
-    )
-    pdf.set_x(pdf.l_margin)
-    pdf.multi_cell(0, 5, deposit_text, align='L')
 
     # --- Bank details for payment ---
-    pdf.ln(8)
+    pdf.ln(12)
     _draw_payment_info(pdf, company, invoice)
 
 
