@@ -128,6 +128,7 @@ def init_db():
             custom_terms TEXT DEFAULT '',
             invoice_type TEXT NOT NULL DEFAULT 'Rechnung',
             deposit_percent REAL DEFAULT 50,
+            deposit_amount_paid REAL DEFAULT 0,
             source_quote_id INTEGER DEFAULT NULL,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
@@ -459,13 +460,16 @@ def _migrate_product_prices(conn):
 
 
 def _migrate_invoice_columns(conn):
-    """Add invoice_type and deposit_percent columns to invoices if they don't exist yet."""
+    """Add invoice_type, deposit_percent, deposit_amount_paid columns to invoices if they don't exist yet."""
     existing = [col[1] for col in conn.execute("PRAGMA table_info(invoices)").fetchall()]
     if 'invoice_type' not in existing:
         conn.execute("ALTER TABLE invoices ADD COLUMN invoice_type TEXT NOT NULL DEFAULT 'Rechnung'")
         conn.commit()
     if 'deposit_percent' not in existing:
         conn.execute("ALTER TABLE invoices ADD COLUMN deposit_percent REAL DEFAULT 50")
+        conn.commit()
+    if 'deposit_amount_paid' not in existing:
+        conn.execute("ALTER TABLE invoices ADD COLUMN deposit_amount_paid REAL DEFAULT 0")
         conn.commit()
 
 
@@ -991,9 +995,9 @@ def create_invoice(data, items):
             customer_salutation, customer_name, customer_company, customer_street, customer_zip,
             customer_city, customer_country_label, customer_phone, customer_email,
             customer_uid, project_name, project_description, creator_name, notes, custom_terms,
-            invoice_type, deposit_percent,
+            invoice_type, deposit_percent, deposit_amount_paid,
             source_quote_id, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         data['invoice_number'], data['date'], data['due_date'], data['country'],
         data.get('status', 'Offen'),
@@ -1008,6 +1012,7 @@ def create_invoice(data, items):
         data.get('custom_terms', ''),
         data.get('invoice_type', 'Rechnung'),
         float(data.get('deposit_percent', 50) or 50),
+        float(data.get('deposit_amount_paid', 0) or 0),
         data.get('source_quote_id') or None, now, now
     ))
     invoice_id = cursor.lastrowid
@@ -1059,7 +1064,7 @@ def update_invoice(invoice_id, data, items):
             customer_salutation=?, customer_name=?, customer_company=?, customer_street=?, customer_zip=?,
             customer_city=?, customer_country_label=?, customer_phone=?, customer_email=?,
             customer_uid=?, project_name=?, project_description=?, creator_name=?, notes=?, custom_terms=?,
-            invoice_type=?, deposit_percent=?,
+            invoice_type=?, deposit_percent=?, deposit_amount_paid=?,
             updated_at=?
         WHERE id=?
     ''', (
@@ -1076,6 +1081,7 @@ def update_invoice(invoice_id, data, items):
         data.get('custom_terms', ''),
         data.get('invoice_type', 'Rechnung'),
         float(data.get('deposit_percent', 50) or 50),
+        float(data.get('deposit_amount_paid', 0) or 0),
         now, invoice_id
     ))
 

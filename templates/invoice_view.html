@@ -150,6 +150,15 @@
                                 <td>Anzahlung {{ invoice.deposit_percent|int }} %</td>
                                 <td class="text-end">{{ "%.2f"|format(totals.brutto * invoice.deposit_percent / 100) }}</td>
                             </tr>
+                            {% elif invoice.invoice_type == 'Endrechnung' and invoice.deposit_amount_paid %}
+                            <tr>
+                                <td>Abzgl. Anzahlung</td>
+                                <td class="text-end">- {{ "%.2f"|format(invoice.deposit_amount_paid) }}</td>
+                            </tr>
+                            <tr class="table-success fw-bold fs-5">
+                                <td><strong>Restbetrag [&euro;]</strong></td>
+                                <td class="text-end"><strong>{{ "%.2f"|format(totals.brutto - invoice.deposit_amount_paid) }}</strong></td>
+                            </tr>
                             {% endif %}
                         </table>
                     </div>
@@ -203,6 +212,8 @@
                         <td>
                             {% if invoice.invoice_type == 'Anzahlungsrechnung' %}
                                 <span class="badge bg-info">Anzahlungsrechnung ({{ invoice.deposit_percent|int }} %)</span>
+                            {% elif invoice.invoice_type == 'Endrechnung' %}
+                                <span class="badge bg-success">Endrechnung</span>
                             {% else %}
                                 <span class="badge bg-secondary">Rechnung</span>
                             {% endif %}

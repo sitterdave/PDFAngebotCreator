@@ -308,6 +308,7 @@ def new_invoice():
         'custom_terms': settings.get('invoice_terms_text', ''),
         'invoice_type': 'Rechnung',
         'deposit_percent': 50,
+        'deposit_amount_paid': 0,
     }
     items = []
     return render_template('invoice_form.html', invoice=invoice, items=items, is_new=True)
@@ -338,6 +339,7 @@ def save_invoice():
         'custom_terms': request.form.get('custom_terms', ''),
         'invoice_type': request.form.get('invoice_type', 'Rechnung'),
         'deposit_percent': float(request.form.get('deposit_percent', 50) or 50),
+        'deposit_amount_paid': float(request.form.get('deposit_amount_paid', 0) or 0),
     }
 
     items = parse_items_from_form(request.form)

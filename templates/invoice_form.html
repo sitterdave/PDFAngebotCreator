@@ -55,14 +55,20 @@
                 <div class="col-md-3">
                     <label class="form-label">Rechnungstyp</label>
                     <select name="invoice_type" class="form-select" id="invoiceTypeSelect">
-                        <option value="Rechnung" {{ 'selected' if invoice.invoice_type != 'Anzahlungsrechnung' }}>Rechnung</option>
+                        <option value="Rechnung" {{ 'selected' if invoice.invoice_type == 'Rechnung' or not invoice.invoice_type }}>Rechnung</option>
                         <option value="Anzahlungsrechnung" {{ 'selected' if invoice.invoice_type == 'Anzahlungsrechnung' }}>Anzahlungsrechnung</option>
+                        <option value="Endrechnung" {{ 'selected' if invoice.invoice_type == 'Endrechnung' }}>Endrechnung</option>
                     </select>
                 </div>
                 <div class="col-md-2" id="depositPercentGroup" style="{{ '' if invoice.invoice_type == 'Anzahlungsrechnung' else 'display:none;' }}">
                     <label class="form-label">Anzahlung %</label>
                     <input type="number" name="deposit_percent" class="form-control"
                            value="{{ invoice.deposit_percent|default(50) }}" min="1" max="100" step="1" id="depositPercent">
+                </div>
+                <div class="col-md-3" id="depositPaidGroup" style="{{ '' if invoice.invoice_type == 'Endrechnung' else 'display:none;' }}">
+                    <label class="form-label">Bereits gezahlte Anzahlung (&euro;)</label>
+                    <input type="number" name="deposit_amount_paid" class="form-control"
+                           value="{{ invoice.deposit_amount_paid|default(0) }}" step="0.01" min="0" id="depositAmountPaid">
                 </div>
             </div>
         </div>
@@ -264,9 +270,11 @@
 document.addEventListener('DOMContentLoaded', function() {
     const typeSelect = document.getElementById('invoiceTypeSelect');
     const depositGroup = document.getElementById('depositPercentGroup');
-    if (typeSelect && depositGroup) {
+    const depositPaidGroup = document.getElementById('depositPaidGroup');
+    if (typeSelect) {
         typeSelect.addEventListener('change', function() {
-            depositGroup.style.display = this.value === 'Anzahlungsrechnung' ? '' : 'none';
+            if (depositGroup) depositGroup.style.display = this.value === 'Anzahlungsrechnung' ? '' : 'none';
+            if (depositPaidGroup) depositPaidGroup.style.display = this.value === 'Endrechnung' ? '' : 'none';
         });
     }
 });

@@ -759,7 +759,9 @@ def generate_invoice_pdf(invoice, items):
     # --- Title (Rechnung or Anzahlungsrechnung) ---
     invoice_type = invoice.get('invoice_type', 'Rechnung') or 'Rechnung'
     is_deposit = (invoice_type == 'Anzahlungsrechnung')
+    is_final = (invoice_type == 'Endrechnung')
     deposit_percent = float(invoice.get('deposit_percent', 50) or 50)
+    deposit_amount_paid = float(invoice.get('deposit_amount_paid', 0) or 0)
 
     pdf.set_font(f, 'B', 20)
     pdf.set_text_color(*BLUE)
@@ -891,16 +893,18 @@ def generate_invoice_pdf(invoice, items):
     if is_deposit:
         # --- Anzahlungsrechnung: special layout ---
         _draw_deposit_invoice_body(pdf, totals, invoice, company, deposit_percent)
+    elif is_final:
+        # --- Endrechnung: normal table + deposit deduction ---
+        _draw_items_table(pdf, totals, invoice['country'])
+        pdf.ln(4)
+        _draw_final_invoice_totals(pdf, totals, invoice['country'], deposit_amount_paid)
+        pdf.ln(8)
+        _draw_payment_info(pdf, company, invoice)
     else:
         # --- Normal Rechnung ---
-        # --- Items table ---
         _draw_items_table(pdf, totals, invoice['country'])
-
-        # --- Totals box ---
         pdf.ln(4)
         _draw_totals_box(pdf, totals, invoice['country'])
-
-        # --- Bank details for payment ---
         pdf.ln(8)
         _draw_payment_info(pdf, company, invoice)
 
@@ -917,6 +921,90 @@ def generate_invoice_pdf(invoice, items):
         _draw_terms_text(pdf, terms)
 
     return pdf.output()
+
+
+def _draw_final_invoice_totals(pdf, totals, country, deposit_amount_paid):
+    """Draw the Endrechnung totals: full amount minus deposit already paid = remaining."""
+    f = pdf.f
+
+    label_w = 45
+    val_w = 40
+    total_w = label_w + val_w
+    page_w = 210
+    box_x = (page_w - total_w) / 2
+
+    pdf.set_line_width(0.3)
+
+    if pdf.get_y() + 55 > pdf.h - 20:
+        pdf.add_page()
+
+    y_start = pdf.get_y() + 4
+
+    # Summe netto
+    pdf.set_xy(box_x, y_start)
+    pdf.set_font(f, '', 9)
+    pdf.set_text_color(*GRAY)
+    pdf.cell(label_w, 7, 'Summe netto', border=0, align='L')
+    pdf.set_text_color(*BLACK)
+    pdf.cell(val_w, 7, fmt(totals['netto']) + ' \u20ac', border=0, align='R')
+    pdf.ln()
+
+    # Separator
+    pdf.set_draw_color(210, 210, 210)
+    pdf.line(box_x, pdf.get_y(), box_x + total_w, pdf.get_y())
+
+    # MwSt
+    if country == 'AT':
+        pdf.set_xy(box_x, pdf.get_y())
+        pdf.set_font(f, '', 9)
+        pdf.set_text_color(*GRAY)
+        pdf.cell(label_w, 7, '20 % MwSt.', border=0, align='L')
+        pdf.set_text_color(*BLACK)
+        pdf.cell(val_w, 7, fmt(totals['vat_total']) + ' \u20ac', border=0, align='R')
+        pdf.ln()
+    elif country == 'DE':
+        vat_19 = sum(i['vat_amount'] for i in totals['positions'] if i['vat_rate'] == 19.0)
+        if vat_19 > 0:
+            pdf.set_xy(box_x, pdf.get_y())
+            pdf.set_font(f, '', 9)
+            pdf.set_text_color(*GRAY)
+            pdf.cell(label_w, 7, '19 % MwSt. (Carport)', border=0, align='L')
+            pdf.set_text_color(*BLACK)
+            pdf.cell(val_w, 7, fmt(vat_19) + ' \u20ac', border=0, align='R')
+            pdf.ln()
+
+    # Summe brutto
+    pdf.set_xy(box_x, pdf.get_y() + 1)
+    pdf.set_font(f, 'B', 10)
+    pdf.set_text_color(*BLACK)
+    pdf.cell(label_w, 8, 'Summe brutto', border=0, align='L')
+    pdf.cell(val_w, 8, fmt(totals['brutto']) + ' \u20ac', border=0, align='R')
+    pdf.ln()
+
+    # Separator
+    pdf.set_draw_color(*BLUE)
+    pdf.set_line_width(0.4)
+    pdf.line(box_x, pdf.get_y(), box_x + total_w, pdf.get_y())
+    pdf.ln(2)
+
+    # Abzüglich Anzahlung
+    if deposit_amount_paid > 0:
+        pdf.set_xy(box_x, pdf.get_y())
+        pdf.set_font(f, '', 9)
+        pdf.set_text_color(*GRAY)
+        pdf.cell(label_w, 7, 'Abzgl. Anzahlung', border=0, align='L')
+        pdf.set_text_color(*BLACK)
+        pdf.cell(val_w, 7, '- ' + fmt(deposit_amount_paid) + ' \u20ac', border=0, align='R')
+        pdf.ln()
+
+    # Restbetrag - highlighted
+    remaining = totals['brutto'] - deposit_amount_paid
+    pdf.set_xy(box_x, pdf.get_y() + 1)
+    pdf.set_fill_color(*BLUE)
+    pdf.set_text_color(*WHITE)
+    pdf.set_font(f, 'B', 10)
+    pdf.cell(label_w, 9, '  Restbetrag', border=0, align='L', fill=True)
+    pdf.cell(val_w, 9, fmt(remaining) + ' \u20ac  ', border=0, align='R', fill=True)
 
 
 def _draw_deposit_invoice_body(pdf, totals, invoice, company, deposit_percent):
