@@ -21,7 +21,8 @@ from models import (
     get_all_product_templates, get_product_template,
     create_product_template, update_product_template, delete_product_template,
     generate_invoice_number, create_invoice, get_invoice, get_all_invoices,
-    update_invoice, delete_invoice, create_invoice_from_quote
+    update_invoice, delete_invoice, create_invoice_from_quote,
+    create_final_invoice_from_deposit
 )
 from pdf_generator import generate_quote_pdf, generate_invoice_pdf
 import io
@@ -433,6 +434,16 @@ def create_invoice_from_quote_route(quote_id):
         return redirect(url_for('edit_invoice', invoice_id=new_id))
     flash('Fehler beim Erstellen der Rechnung.', 'error')
     return redirect(url_for('index'))
+
+
+@app.route('/invoice/<int:invoice_id>/create-final', methods=['POST'])
+def create_final_invoice_route(invoice_id):
+    new_id = create_final_invoice_from_deposit(invoice_id)
+    if new_id:
+        flash('Endrechnung aus Anzahlungsrechnung erstellt.', 'success')
+        return redirect(url_for('edit_invoice', invoice_id=new_id))
+    flash('Fehler beim Erstellen der Endrechnung.', 'error')
+    return redirect(url_for('view_invoice', invoice_id=invoice_id))
 
 
 # --- Settings ---

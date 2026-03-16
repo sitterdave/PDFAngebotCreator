@@ -1166,3 +1166,61 @@ def create_invoice_from_quote(quote_id):
         })
 
     return create_invoice(invoice_data, invoice_items)
+
+
+def create_final_invoice_from_deposit(deposit_invoice_id):
+    """Create an Endrechnung from an existing Anzahlungsrechnung, copying all data and calculating deposit."""
+    deposit_inv, items = get_invoice(deposit_invoice_id)
+    if not deposit_inv or deposit_inv.get('invoice_type') != 'Anzahlungsrechnung':
+        return None
+
+    settings = get_company_settings()
+    today = datetime.now().strftime('%Y-%m-%d')
+    due_date = (datetime.now() + timedelta(days=14)).strftime('%Y-%m-%d')
+
+    # Calculate the deposit brutto amount
+    totals = calculate_quote_totals(items, deposit_inv['country'])
+    deposit_pct = float(deposit_inv.get('deposit_percent', 50) or 50)
+    deposit_brutto = round(totals['brutto'] * deposit_pct / 100.0, 2)
+
+    invoice_data = {
+        'invoice_number': generate_invoice_number(),
+        'date': today,
+        'due_date': due_date,
+        'country': deposit_inv['country'],
+        'status': 'Offen',
+        'invoice_type': 'Endrechnung',
+        'deposit_percent': deposit_pct,
+        'deposit_amount_paid': deposit_brutto,
+        'linked_deposit_invoice_id': deposit_invoice_id,
+        'customer_salutation': deposit_inv.get('customer_salutation', ''),
+        'customer_name': deposit_inv['customer_name'],
+        'customer_company': deposit_inv.get('customer_company', ''),
+        'customer_street': deposit_inv.get('customer_street', ''),
+        'customer_zip': deposit_inv.get('customer_zip', ''),
+        'customer_city': deposit_inv.get('customer_city', ''),
+        'customer_country_label': deposit_inv.get('customer_country_label', ''),
+        'customer_phone': deposit_inv.get('customer_phone', ''),
+        'customer_email': deposit_inv.get('customer_email', ''),
+        'customer_uid': deposit_inv.get('customer_uid', ''),
+        'project_name': deposit_inv.get('project_name', ''),
+        'project_description': deposit_inv.get('project_description', ''),
+        'creator_name': deposit_inv.get('creator_name', ''),
+        'notes': '',
+        'custom_terms': settings.get('invoice_terms_text', ''),
+        'source_quote_id': deposit_inv.get('source_quote_id'),
+    }
+
+    invoice_items = []
+    for item in items:
+        invoice_items.append({
+            'title': item.get('title', ''),
+            'description': item.get('description', ''),
+            'quantity': item.get('quantity', '1x'),
+            'total_price': float(item.get('total_price', 0) or 0),
+            'is_carport': int(item.get('is_carport', 0)),
+            'is_optional': int(item.get('is_optional', 0)),
+            'is_richtpreis': int(item.get('is_richtpreis', 0)),
+        })
+
+    return create_invoice(invoice_data, invoice_items)
