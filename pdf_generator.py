@@ -1095,11 +1095,7 @@ def _draw_deposit_invoice_body(pdf, totals, invoice, company, deposit_percent):
 
         pdf.ln(2)
 
-    # --- Totals: Gesamtpreis brutto ---
-    pdf.ln(4)
-    pdf.set_draw_color(*BLUE)
-    pdf.set_line_width(0.4)
-    pdf.line(pdf.l_margin, pdf.get_y(), 200, pdf.get_y())
+    # --- Totals centered like normal invoice ---
     pdf.ln(4)
 
     brutto = totals['brutto']
@@ -1108,84 +1104,105 @@ def _draw_deposit_invoice_body(pdf, totals, invoice, company, deposit_percent):
     deposit_netto = netto * deposit_percent / 100.0
     deposit_vat = vat_total * deposit_percent / 100.0
     deposit_brutto = brutto * deposit_percent / 100.0
-
-    label_w = 120
-    val_w = 60
-
-    # Gesamtpreis netto
-    pdf.set_font(f, '', 9)
-    pdf.set_text_color(*GRAY)
-    pdf.cell(label_w, 6, 'Gesamtpreis netto:', ln=False)
-    pdf.set_text_color(*BLACK)
-    pdf.cell(val_w, 6, fmt(netto) + ' \u20ac', align='R', ln=True)
-
-    # MwSt
-    if country == 'AT':
-        pdf.set_text_color(*GRAY)
-        pdf.cell(label_w, 6, '20 % MwSt.:', ln=False)
-        pdf.set_text_color(*BLACK)
-        pdf.cell(val_w, 6, fmt(vat_total) + ' \u20ac', align='R', ln=True)
-    elif country == 'DE' and vat_total > 0:
-        pdf.set_text_color(*GRAY)
-        pdf.cell(label_w, 6, '19 % MwSt.:', ln=False)
-        pdf.set_text_color(*BLACK)
-        pdf.cell(val_w, 6, fmt(vat_total) + ' \u20ac', align='R', ln=True)
-
-    # Gesamtpreis brutto
-    pdf.set_font(f, 'B', 10)
-    pdf.set_text_color(*BLACK)
-    pdf.cell(label_w, 7, 'Gesamtpreis brutto:', ln=False)
-    pdf.cell(val_w, 7, fmt(brutto) + ' \u20ac', align='R', ln=True)
-
-    # --- Separator ---
-    pdf.ln(4)
-    pdf.set_draw_color(*BLUE)
-    pdf.set_line_width(0.6)
-    pdf.line(pdf.l_margin, pdf.get_y(), 200, pdf.get_y())
-    pdf.ln(6)
-
-    # --- Anzahlung highlight ---
     pct_int = int(deposit_percent) if deposit_percent == int(deposit_percent) else deposit_percent
     vat_label = '20 %' if country == 'AT' else '19 %'
 
-    # Anzahlung netto
+    label_w = 55
+    val_w = 40
+    total_w = label_w + val_w
+    page_w = 210
+    box_x = (page_w - total_w) / 2
+
+    pdf.set_line_width(0.3)
+
+    # Ensure totals box fits on page
+    if pdf.get_y() + 65 > pdf.h - 20:
+        pdf.add_page()
+
+    y_start = pdf.get_y() + 4
+
+    # Gesamtpreis netto
+    pdf.set_xy(box_x, y_start)
     pdf.set_font(f, '', 9)
     pdf.set_text_color(*GRAY)
-    pdf.cell(label_w, 6, f'Anzahlung {pct_int} % netto:', ln=False)
+    pdf.cell(label_w, 7, 'Gesamtpreis netto', border=0, align='L')
     pdf.set_text_color(*BLACK)
-    pdf.cell(val_w, 6, fmt(deposit_netto) + ' \u20ac', align='R', ln=True)
+    pdf.cell(val_w, 7, fmt(netto) + ' \u20ac', border=0, align='R')
+    pdf.ln()
+
+    # Separator
+    pdf.set_draw_color(210, 210, 210)
+    pdf.line(box_x, pdf.get_y(), box_x + total_w, pdf.get_y())
+
+    # MwSt
+    if country == 'AT':
+        pdf.set_xy(box_x, pdf.get_y())
+        pdf.set_font(f, '', 9)
+        pdf.set_text_color(*GRAY)
+        pdf.cell(label_w, 7, '20 % MwSt.', border=0, align='L')
+        pdf.set_text_color(*BLACK)
+        pdf.cell(val_w, 7, fmt(vat_total) + ' \u20ac', border=0, align='R')
+        pdf.ln()
+    elif country == 'DE' and vat_total > 0:
+        pdf.set_xy(box_x, pdf.get_y())
+        pdf.set_font(f, '', 9)
+        pdf.set_text_color(*GRAY)
+        pdf.cell(label_w, 7, '19 % MwSt.', border=0, align='L')
+        pdf.set_text_color(*BLACK)
+        pdf.cell(val_w, 7, fmt(vat_total) + ' \u20ac', border=0, align='R')
+        pdf.ln()
+
+    # Gesamtpreis brutto
+    pdf.set_xy(box_x, pdf.get_y() + 1)
+    pdf.set_font(f, 'B', 10)
+    pdf.set_text_color(*BLACK)
+    pdf.cell(label_w, 8, 'Gesamtpreis brutto', border=0, align='L')
+    pdf.cell(val_w, 8, fmt(brutto) + ' \u20ac', border=0, align='R')
+    pdf.ln()
+
+    # --- Blue separator ---
+    pdf.set_draw_color(*BLUE)
+    pdf.set_line_width(0.5)
+    pdf.line(box_x, pdf.get_y() + 2, box_x + total_w, pdf.get_y() + 2)
+    pdf.ln(6)
+
+    # --- Anzahlung Netto ---
+    pdf.set_xy(box_x, pdf.get_y())
+    pdf.set_font(f, '', 9)
+    pdf.set_text_color(*GRAY)
+    pdf.cell(label_w, 7, f'Anzahlung {pct_int} % netto', border=0, align='L')
+    pdf.set_text_color(*BLACK)
+    pdf.cell(val_w, 7, fmt(deposit_netto) + ' \u20ac', border=0, align='R')
+    pdf.ln()
 
     # Anzahlung MwSt
     if deposit_vat > 0:
+        pdf.set_xy(box_x, pdf.get_y())
+        pdf.set_font(f, '', 9)
         pdf.set_text_color(*GRAY)
-        pdf.cell(label_w, 6, f'{vat_label} MwSt. auf Anzahlung:', ln=False)
+        pdf.cell(label_w, 7, f'{vat_label} MwSt. auf Anzahlung', border=0, align='L')
         pdf.set_text_color(*BLACK)
-        pdf.cell(val_w, 6, fmt(deposit_vat) + ' \u20ac', align='R', ln=True)
+        pdf.cell(val_w, 7, fmt(deposit_vat) + ' \u20ac', border=0, align='R')
+        pdf.ln()
 
-    # Anzahlungsbetrag brutto - blue highlighted box
-    pdf.ln(2)
-    box_x = 60
-    box_w = 140
-    pdf.set_xy(box_x, pdf.get_y())
+    # Anzahlungsbetrag brutto - blue highlighted box (full width of totals box)
+    pdf.set_xy(box_x, pdf.get_y() + 1)
     pdf.set_fill_color(*BLUE)
     pdf.set_text_color(*WHITE)
-    pdf.set_font(f, 'B', 11)
-    pdf.cell(80, 10, f'  Anzahlung {pct_int} %', border=0, align='L', fill=True)
-    pdf.cell(box_w - 80, 10, fmt(deposit_brutto) + ' \u20ac  ', border=0, align='R', fill=True)
+    pdf.set_font(f, 'B', 10)
+    pdf.cell(label_w, 9, f'  Anzahlung {pct_int} %', border=0, align='L', fill=True)
+    pdf.cell(val_w, 9, fmt(deposit_brutto) + ' \u20ac  ', border=0, align='R', fill=True)
     pdf.ln(14)
 
-    # --- Beschreibungstext ---
+    # --- Kurzer Beschreibungstext ---
     pdf.set_text_color(*BLACK)
     pdf.set_font(f, '', 9)
 
-    # Build description text from positions
-    position_names = [item.get('title', '') for item in regular_items if item.get('title', '')]
-    positions_text = ', '.join(position_names) if position_names else 'die beauftragten Leistungen'
-
     deposit_text = (
-        f"Anzahlungsrechnung \u00fcber {pct_int} % des Auftragswertes f\u00fcr {positions_text}. "
+        f"Anzahlungsrechnung \u00fcber {pct_int} % des Auftragswertes. "
         f"Restzahlung erfolgt nach Fertigstellung und Lieferung."
     )
+    pdf.set_x(pdf.l_margin)
     pdf.multi_cell(0, 5, deposit_text, align='L')
 
     # --- Bank details for payment ---
