@@ -152,7 +152,16 @@
                             </tr>
                             {% elif invoice.invoice_type == 'Endrechnung' and invoice.deposit_amount_paid %}
                             <tr>
-                                <td>Abzgl. Anzahlung</td>
+                                <td>
+                                    Abzgl. Anzahlung
+                                    {% if invoice.linked_deposit_invoice_id %}
+                                        <br><small class="text-muted">
+                                            <a href="{{ url_for('view_invoice', invoice_id=invoice.linked_deposit_invoice_id) }}">
+                                                <i class="bi bi-link-45deg"></i> Anzahlungsrechnung ansehen
+                                            </a>
+                                        </small>
+                                    {% endif %}
+                                </td>
                                 <td class="text-end">- {{ "%.2f"|format(invoice.deposit_amount_paid) }}</td>
                             </tr>
                             <tr class="table-success fw-bold fs-5">

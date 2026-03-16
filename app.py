@@ -309,6 +309,7 @@ def new_invoice():
         'invoice_type': 'Rechnung',
         'deposit_percent': 50,
         'deposit_amount_paid': 0,
+        'linked_deposit_invoice_id': None,
     }
     items = []
     return render_template('invoice_form.html', invoice=invoice, items=items, is_new=True)
@@ -340,6 +341,7 @@ def save_invoice():
         'invoice_type': request.form.get('invoice_type', 'Rechnung'),
         'deposit_percent': float(request.form.get('deposit_percent', 50) or 50),
         'deposit_amount_paid': float(request.form.get('deposit_amount_paid', 0) or 0),
+        'linked_deposit_invoice_id': int(request.form.get('linked_deposit_invoice_id', 0) or 0) or None,
     }
 
     items = parse_items_from_form(request.form)
@@ -491,6 +493,33 @@ def delete_logo():
         update_company_settings(logo_path='')
     flash('Logo entfernt.', 'success')
     return redirect(url_for('settings'))
+
+
+# --- API for deposit invoice lookup ---
+
+@app.route('/api/deposit-invoices')
+def api_deposit_invoices():
+    """Return all Anzahlungsrechnungen with calculated deposit amounts for Endrechnung linking."""
+    invoices = get_all_invoices()
+    result = []
+    for inv in invoices:
+        if inv.get('invoice_type') != 'Anzahlungsrechnung':
+            continue
+        _, items = get_invoice(inv['id'])
+        totals = calculate_quote_totals(items, inv['country'])
+        deposit_pct = float(inv.get('deposit_percent', 50) or 50)
+        deposit_brutto = round(totals['brutto'] * deposit_pct / 100.0, 2)
+        result.append({
+            'id': inv['id'],
+            'invoice_number': inv['invoice_number'],
+            'customer_name': inv['customer_name'],
+            'customer_company': inv.get('customer_company', ''),
+            'date': inv['date'],
+            'brutto': round(totals['brutto'], 2),
+            'deposit_percent': deposit_pct,
+            'deposit_brutto': deposit_brutto,
+        })
+    return jsonify(result)
 
 
 # --- API for live calculation ---

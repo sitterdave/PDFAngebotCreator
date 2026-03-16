@@ -65,8 +65,15 @@
                     <input type="number" name="deposit_percent" class="form-control"
                            value="{{ invoice.deposit_percent|default(50) }}" min="1" max="100" step="1" id="depositPercent">
                 </div>
-                <div class="col-md-3" id="depositPaidGroup" style="{{ '' if invoice.invoice_type == 'Endrechnung' else 'display:none;' }}">
-                    <label class="form-label">Bereits gezahlte Anzahlung (&euro;)</label>
+                <div class="col-md-4" id="linkedDepositGroup" style="{{ '' if invoice.invoice_type == 'Endrechnung' else 'display:none;' }}">
+                    <label class="form-label">Bezieht sich auf Anzahlungsrechnung</label>
+                    <select name="linked_deposit_invoice_id" class="form-select" id="linkedDepositSelect">
+                        <option value="">-- Manuell eingeben --</option>
+                    </select>
+                    <input type="hidden" id="linkedDepositCurrent" value="{{ invoice.linked_deposit_invoice_id or '' }}">
+                </div>
+                <div class="col-md-2" id="depositPaidGroup" style="{{ '' if invoice.invoice_type == 'Endrechnung' else 'display:none;' }}">
+                    <label class="form-label">Anzahlung (&euro;)</label>
                     <input type="number" name="deposit_amount_paid" class="form-control"
                            value="{{ invoice.deposit_amount_paid|default(0) }}" step="0.01" min="0" id="depositAmountPaid">
                 </div>
@@ -271,10 +278,57 @@ document.addEventListener('DOMContentLoaded', function() {
     const typeSelect = document.getElementById('invoiceTypeSelect');
     const depositGroup = document.getElementById('depositPercentGroup');
     const depositPaidGroup = document.getElementById('depositPaidGroup');
+    const linkedDepositGroup = document.getElementById('linkedDepositGroup');
+    const linkedDepositSelect = document.getElementById('linkedDepositSelect');
+    const depositAmountPaid = document.getElementById('depositAmountPaid');
+    const linkedDepositCurrent = document.getElementById('linkedDepositCurrent');
+
+    let depositInvoicesLoaded = false;
+    let depositInvoices = [];
+
+    function toggleFields() {
+        const val = typeSelect.value;
+        if (depositGroup) depositGroup.style.display = val === 'Anzahlungsrechnung' ? '' : 'none';
+        if (depositPaidGroup) depositPaidGroup.style.display = val === 'Endrechnung' ? '' : 'none';
+        if (linkedDepositGroup) linkedDepositGroup.style.display = val === 'Endrechnung' ? '' : 'none';
+        if (val === 'Endrechnung' && !depositInvoicesLoaded) loadDepositInvoices();
+    }
+
+    function loadDepositInvoices() {
+        depositInvoicesLoaded = true;
+        fetch('/api/deposit-invoices')
+            .then(r => r.json())
+            .then(data => {
+                depositInvoices = data;
+                linkedDepositSelect.innerHTML = '<option value="">-- Manuell eingeben --</option>';
+                data.forEach(inv => {
+                    const opt = document.createElement('option');
+                    opt.value = inv.id;
+                    const label = inv.invoice_number + ' - ' + (inv.customer_company || inv.customer_name)
+                        + ' (' + inv.deposit_percent + '% = ' + inv.deposit_brutto.toFixed(2).replace('.', ',') + ' \u20ac)';
+                    opt.textContent = label;
+                    linkedDepositSelect.appendChild(opt);
+                });
+                // Pre-select if editing existing Endrechnung
+                const currentId = linkedDepositCurrent ? linkedDepositCurrent.value : '';
+                if (currentId) linkedDepositSelect.value = currentId;
+            });
+    }
+
     if (typeSelect) {
-        typeSelect.addEventListener('change', function() {
-            if (depositGroup) depositGroup.style.display = this.value === 'Anzahlungsrechnung' ? '' : 'none';
-            if (depositPaidGroup) depositPaidGroup.style.display = this.value === 'Endrechnung' ? '' : 'none';
+        typeSelect.addEventListener('change', toggleFields);
+        // Initial state
+        if (typeSelect.value === 'Endrechnung') loadDepositInvoices();
+    }
+
+    if (linkedDepositSelect) {
+        linkedDepositSelect.addEventListener('change', function() {
+            const selectedId = parseInt(this.value);
+            if (!selectedId) return;
+            const inv = depositInvoices.find(i => i.id === selectedId);
+            if (inv && depositAmountPaid) {
+                depositAmountPaid.value = inv.deposit_brutto.toFixed(2);
+            }
         });
     }
 });

@@ -129,6 +129,7 @@ def init_db():
             invoice_type TEXT NOT NULL DEFAULT 'Rechnung',
             deposit_percent REAL DEFAULT 50,
             deposit_amount_paid REAL DEFAULT 0,
+            linked_deposit_invoice_id INTEGER DEFAULT NULL,
             source_quote_id INTEGER DEFAULT NULL,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
@@ -470,6 +471,9 @@ def _migrate_invoice_columns(conn):
         conn.commit()
     if 'deposit_amount_paid' not in existing:
         conn.execute("ALTER TABLE invoices ADD COLUMN deposit_amount_paid REAL DEFAULT 0")
+        conn.commit()
+    if 'linked_deposit_invoice_id' not in existing:
+        conn.execute("ALTER TABLE invoices ADD COLUMN linked_deposit_invoice_id INTEGER DEFAULT NULL")
         conn.commit()
 
 
@@ -995,9 +999,9 @@ def create_invoice(data, items):
             customer_salutation, customer_name, customer_company, customer_street, customer_zip,
             customer_city, customer_country_label, customer_phone, customer_email,
             customer_uid, project_name, project_description, creator_name, notes, custom_terms,
-            invoice_type, deposit_percent, deposit_amount_paid,
+            invoice_type, deposit_percent, deposit_amount_paid, linked_deposit_invoice_id,
             source_quote_id, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         data['invoice_number'], data['date'], data['due_date'], data['country'],
         data.get('status', 'Offen'),
@@ -1013,6 +1017,7 @@ def create_invoice(data, items):
         data.get('invoice_type', 'Rechnung'),
         float(data.get('deposit_percent', 50) or 50),
         float(data.get('deposit_amount_paid', 0) or 0),
+        data.get('linked_deposit_invoice_id') or None,
         data.get('source_quote_id') or None, now, now
     ))
     invoice_id = cursor.lastrowid
@@ -1064,7 +1069,7 @@ def update_invoice(invoice_id, data, items):
             customer_salutation=?, customer_name=?, customer_company=?, customer_street=?, customer_zip=?,
             customer_city=?, customer_country_label=?, customer_phone=?, customer_email=?,
             customer_uid=?, project_name=?, project_description=?, creator_name=?, notes=?, custom_terms=?,
-            invoice_type=?, deposit_percent=?, deposit_amount_paid=?,
+            invoice_type=?, deposit_percent=?, deposit_amount_paid=?, linked_deposit_invoice_id=?,
             updated_at=?
         WHERE id=?
     ''', (
@@ -1082,6 +1087,7 @@ def update_invoice(invoice_id, data, items):
         data.get('invoice_type', 'Rechnung'),
         float(data.get('deposit_percent', 50) or 50),
         float(data.get('deposit_amount_paid', 0) or 0),
+        data.get('linked_deposit_invoice_id') or None,
         now, invoice_id
     ))
 

@@ -5,7 +5,7 @@ Professional layout with Verdana font, brand colors, and clean structure.
 
 import os
 from fpdf import FPDF
-from models import calculate_quote_totals, get_company_settings
+from models import calculate_quote_totals, get_company_settings, get_invoice
 
 STATIC_DIR = os.path.join(os.path.dirname(__file__), 'static')
 
@@ -895,9 +895,16 @@ def generate_invoice_pdf(invoice, items):
         _draw_deposit_invoice_body(pdf, totals, invoice, company, deposit_percent)
     elif is_final:
         # --- Endrechnung: normal table + deposit deduction ---
+        # Look up linked deposit invoice number for reference
+        linked_deposit_number = ''
+        linked_id = invoice.get('linked_deposit_invoice_id')
+        if linked_id:
+            linked_inv, _ = get_invoice(int(linked_id))
+            if linked_inv:
+                linked_deposit_number = linked_inv.get('invoice_number', '')
         _draw_items_table(pdf, totals, invoice['country'])
         pdf.ln(4)
-        _draw_final_invoice_totals(pdf, totals, invoice['country'], deposit_amount_paid)
+        _draw_final_invoice_totals(pdf, totals, invoice['country'], deposit_amount_paid, linked_deposit_number)
         pdf.ln(8)
         _draw_payment_info(pdf, company, invoice)
     else:
@@ -923,7 +930,7 @@ def generate_invoice_pdf(invoice, items):
     return pdf.output()
 
 
-def _draw_final_invoice_totals(pdf, totals, country, deposit_amount_paid):
+def _draw_final_invoice_totals(pdf, totals, country, deposit_amount_paid, linked_deposit_number=''):
     """Draw the Endrechnung totals: full amount minus deposit already paid = remaining."""
     f = pdf.f
 
@@ -989,12 +996,18 @@ def _draw_final_invoice_totals(pdf, totals, country, deposit_amount_paid):
 
     # Abzüglich Anzahlung
     if deposit_amount_paid > 0:
+        deposit_label = 'Abzgl. Anzahlung'
+        if linked_deposit_number:
+            deposit_label = f'Abzgl. Anzahlung (Rg. {linked_deposit_number})'
         pdf.set_xy(box_x, pdf.get_y())
         pdf.set_font(f, '', 9)
         pdf.set_text_color(*GRAY)
-        pdf.cell(label_w, 7, 'Abzgl. Anzahlung', border=0, align='L')
+        # Use wider label for reference text
+        ref_label_w = label_w + 15 if linked_deposit_number else label_w
+        ref_val_w = val_w - 15 if linked_deposit_number else val_w
+        pdf.cell(ref_label_w, 7, deposit_label, border=0, align='L')
         pdf.set_text_color(*BLACK)
-        pdf.cell(val_w, 7, '- ' + fmt(deposit_amount_paid) + ' \u20ac', border=0, align='R')
+        pdf.cell(ref_val_w, 7, '- ' + fmt(deposit_amount_paid) + ' \u20ac', border=0, align='R')
         pdf.ln()
 
     # Restbetrag - highlighted
